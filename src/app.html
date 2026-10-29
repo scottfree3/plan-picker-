@@ -81,9 +81,9 @@ main{flex:1;min-height:0;position:relative}
 .vpwrap{position:relative;min-width:0;min-height:0;overflow:hidden}
 .vp{position:absolute;inset:0;touch-action:none;overflow:hidden;cursor:grab}
 .vp.tagging{cursor:crosshair}
-.layer{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.layer{position:absolute;left:0;top:0;transform-origin:0 0}
 .layer img{display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;filter:var(--planfilter);pointer-events:none;border-radius:2px}
-.tag{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(var(--iz,1));transform-origin:50% 50%;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;padding:6px;touch-action:none}
+.tag{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;padding:6px;touch-action:none}
 .tag .cap2{display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:var(--tag-bg);color:var(--tag-fg);font:600 11px/1 var(--sans);letter-spacing:.06em;box-shadow:0 0 0 1px rgba(239,232,218,.28),0 2px 8px rgba(0,0,0,.35);white-space:nowrap}
 .tag .cap2 .d{width:6px;height:6px;border-radius:50%;border:1.2px solid var(--tag-fg);opacity:.7}
 .tag.s1 .cap2,.tag.s2 .cap2{background:var(--tag-on);color:var(--tag-on-fg);box-shadow:0 0 0 1px rgba(11,10,9,.5),0 2px 10px rgba(245,201,40,.35)}
@@ -98,6 +98,11 @@ main{flex:1;min-height:0;position:relative}
 .hud{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:12px;display:grid;gap:6px;z-index:3}
 .hud button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:color-mix(in srgb,var(--raise) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;color:var(--text);font-size:17px}
 .hud button[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.hud .zl{width:38px;font:500 10.5px/1 var(--sans);text-align:center;color:var(--body);font-variant-numeric:tabular-nums;padding:2px 0}
+.hud .zgrp{display:grid;gap:4px;justify-items:center;padding:4px 0;border-radius:24px;background:color-mix(in srgb,var(--raise) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line2)}
+.hud .zgrp button{border:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;width:38px;height:34px;font-size:20px}
+.zoomhint{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:3;font-size:13px;color:var(--text);background:color-mix(in srgb,var(--raise) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line2);border-radius:999px;padding:7px 14px;white-space:nowrap;pointer-events:none;transition:opacity .4s}
+@media (prefers-reduced-motion:reduce){.zoomhint{transition:none}}
 .dock{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--raise) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line2);box-shadow:0 10px 40px rgba(0,0,0,.35);z-index:4;max-width:calc(100% - 24px)}
 .dock .roomb{display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:8px 12px;border-radius:999px;min-width:0;max-width:150px}
 .dock .roomb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
@@ -491,8 +496,9 @@ function renderPlan(p) {
   m.innerHTML = `<div class="planview"><div class="vpwrap">
       <div class="vp ${S.tagging ? "tagging" : ""}" id="vp"><div class="layer" id="lyr"><img id="planimg" src="${esc(imgURL(p.plan.img))}" alt="Floorplan" draggable="false"><div id="tags"></div></div></div>
       <div class="coach" id="coach" ${S.tagging ? "" : "hidden"}>Tap each piece on the plan</div>
+      ${!S.tagging && !recall("pp.zoomhint") ? `<div class="zoomhint" id="zoomhint">${matchMedia("(pointer:coarse)").matches ? "Pinch or double-tap to zoom · drag to move" : "Pinch, ⌘/Ctrl + scroll or double-click to zoom · scroll to move"}</div>` : ""}
       <div class="hud">
-        <button data-act="zoomin" aria-label="Zoom in">+</button><button data-act="zoomout" aria-label="Zoom out">−</button>
+        <div class="zgrp"><button data-act="zoomin" aria-label="Zoom in">+</button><span class="zl" id="zl" aria-live="polite">100%</span><button data-act="zoomout" aria-label="Zoom out">−</button></div>
         <button data-act="fit" aria-label="Fit plan to screen"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
         <button data-act="labels" aria-pressed="${S.labels}" aria-label="Show names on tags"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.4"/></svg></button>
         <button data-act="paper" aria-pressed="${document.documentElement.classList.contains("paper")}" aria-label="Show drawing on white"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="10" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 6h5M5.5 9h5" stroke="currentColor" stroke-width="1.2"/></svg></button>
@@ -511,58 +517,92 @@ function renderPlan(p) {
 function vpSize() { const v = $("#vp"); return v ? { w: v.clientWidth, h: v.clientHeight } : { w: 1, h: 1 }; }
 function baseSize() { const p = proj(), { w, h } = vpSize(), ar = p.plan.w / p.plan.h; let bw = w - 32, bh = bw / ar; if (bh > h - 140) { bh = h - 140; bw = bh * ar; } return { bw: Math.max(bw, 100), bh: Math.max(bh, 100 / ar) }; }
 function fitView() { const { w, h } = vpSize(), { bw, bh } = baseSize(); S.view = { z: 1, x: (w - bw) / 2, y: Math.max(12, (h - 76 - bh) / 2) }; applyView(); }
+// The layer is laid out at its true zoomed size (not CSS-scaled), so the browser
+// redraws the drawing from the full-resolution image at every zoom level.
+let viewRAF = 0;
+function maxZoom() { const p = proj(), { bw } = baseSize(); return Math.min(24, Math.max(6, (p.plan.w * 2) / bw)); }
+function clampView() {
+  const v = S.view, { w, h } = vpSize(), { bw, bh } = baseSize(), lw = bw * v.z, lh = bh * v.z, keep = 80;
+  v.x = Math.min(w - keep, Math.max(keep - lw, v.x)); v.y = Math.min(h - keep, Math.max(keep - lh, v.y));
+}
 function applyView() {
-  const l = $("#lyr"); if (!l || !S.view) return; const { bw, bh } = baseSize();
-  l.style.width = bw + "px"; l.style.height = bh + "px";
-  l.style.transform = `translate(${S.view.x}px,${S.view.y}px) scale(${S.view.z})`;
-  l.style.setProperty("--iz", (1 / S.view.z).toFixed(4));
+  if (!S.view) return; clampView();
+  if (viewRAF) return;
+  viewRAF = requestAnimationFrame(() => {
+    viewRAF = 0; const l = $("#lyr"); if (!l || !S.view) return; const { bw, bh } = baseSize(), z = S.view.z;
+    l.style.width = bw * z + "px"; l.style.height = bh * z + "px";
+    l.style.transform = `translate(${S.view.x}px,${S.view.y}px)`;
+    const zl = $("#zl"); if (zl) zl.textContent = Math.round(z * 100) + "%";
+  });
 }
 function zoomAt(f, cx, cy) {
-  const v = S.view, z = Math.min(10, Math.max(.6, v.z * f)), k = z / v.z;
-  v.x = cx - (cx - v.x) * k; v.y = cy - (cy - v.y) * k; v.z = z; applyView();
+  const v = S.view, z = Math.min(maxZoom(), Math.max(.5, v.z * f)), k = z / v.z;
+  v.x = cx - (cx - v.x) * k; v.y = cy - (cy - v.y) * k; v.z = z; applyView(); dismissZoomHint();
 }
+function dismissZoomHint() { const h = $("#zoomhint"); if (h) { h.style.opacity = "0"; setTimeout(() => h.remove(), 400); store("pp.zoomhint", "1"); } }
 function toPlan(clientX, clientY) {
   const r = $("#vp").getBoundingClientRect(), { bw, bh } = baseSize(), v = S.view;
   return { x: (clientX - r.left - v.x) / (bw * v.z), y: (clientY - r.top - v.y) / (bh * v.z) };
 }
+const vpPts = new Map();
 function bindViewport() {
-  const vp = $("#vp"); const pts = new Map(); let g = null;
+  const vp = $("#vp"); vpPts.clear(); let g = null, lastTap = null;
+  const rel = (x, y) => { const r = vp.getBoundingClientRect(); return [x - r.left, y - r.top]; };
+  const startPinch = () => { const [a, b] = [...vpPts.values()], [mx, my] = rel((a.x + b.x) / 2, (a.y + b.y) / 2);
+    g = { kind: "pinch", d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), mx, my, z: S.view.z, vx: S.view.x, vy: S.view.y }; };
   vp.addEventListener("pointerdown", e => {
-    if (e.target.closest(".tag")) return;
-    vp.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const r = vp.getBoundingClientRect();
-    if (pts.size === 1) g = { kind: "pan", sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, t: Date.now(), moved: false };
-    else if (pts.size === 2) { const [a, b] = [...pts.values()]; g = { kind: "pinch", d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2 - r.left, my: (a.y + b.y) / 2 - r.top, z: S.view.z, vx: S.view.x, vy: S.view.y, moved: true }; }
+    // a finger on a tag still counts toward a pinch once another finger is down
+    if (e.target.closest(".tag") && vpPts.size === 0) return;
+    try { vp.setPointerCapture(e.pointerId); } catch (_) {}
+    vpPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (vpPts.size === 1) g = { kind: "pan", sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, t: Date.now(), moved: false };
+    else if (vpPts.size === 2) { startPinch(); dismissZoomHint(); }
   });
   vp.addEventListener("pointermove", e => {
-    if (!pts.has(e.pointerId) || !g) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const r = vp.getBoundingClientRect();
-    if (g.kind === "pan" && pts.size === 1) {
-      const dx = e.clientX - g.sx, dy = e.clientY - g.sy; if (Math.abs(dx) + Math.abs(dy) > 6) g.moved = true;
+    if (!vpPts.has(e.pointerId) || !g) return; vpPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.kind === "pan" && vpPts.size === 1) {
+      const dx = e.clientX - g.sx, dy = e.clientY - g.sy; if (!g.moved && Math.hypot(dx, dy) > 7) g.moved = true;
       if (g.moved) { S.view.x = g.vx + dx; S.view.y = g.vy + dy; applyView(); }
-    } else if (g.kind === "pinch" && pts.size === 2) {
-      const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top;
-      const z = Math.min(10, Math.max(.6, g.z * d / g.d)), wx = (g.mx - g.vx) / g.z, wy = (g.my - g.vy) / g.z;
+    } else if (g.kind === "pinch" && vpPts.size >= 2) {
+      const [a, b] = [...vpPts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), [mx, my] = rel((a.x + b.x) / 2, (a.y + b.y) / 2);
+      const z = Math.min(maxZoom(), Math.max(.5, g.z * d / g.d)), wx = (g.mx - g.vx) / g.z, wy = (g.my - g.vy) / g.z;
       S.view.z = z; S.view.x = mx - wx * z; S.view.y = my - wy * z; applyView();
     }
   });
   const up = e => {
-    if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId);
-    if (g && g.kind === "pan" && !g.moved && pts.size === 0 && Date.now() - g.t < 600) planTap(e);
-    if (pts.size === 0) g = null; else if (pts.size === 1) { const [p] = [...pts.values()]; g = { kind: "pan", sx: p.x, sy: p.y, vx: S.view.x, vy: S.view.y, t: 0, moved: true }; }
+    if (!vpPts.has(e.pointerId)) return; vpPts.delete(e.pointerId);
+    if (g && g.kind === "pan" && !g.moved && vpPts.size === 0 && Date.now() - g.t < 500) {
+      const now = Date.now(), dbl = lastTap && now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30;
+      if (dbl && !S.tagging) { const [x, y] = rel(e.clientX, e.clientY); if (S.view.z >= maxZoom() * .9) fitView(); else zoomAt(2, x, y); lastTap = null; }
+      else { lastTap = { t: now, x: e.clientX, y: e.clientY }; planTap(e); }
+    }
+    if (vpPts.size === 0) g = null;
+    else if (vpPts.size === 1) { const [q] = [...vpPts.values()]; g = { kind: "pan", sx: q.x, sy: q.y, vx: S.view.x, vy: S.view.y, t: 0, moved: true }; }
+    else startPinch();
   };
   vp.addEventListener("pointerup", up); vp.addEventListener("pointercancel", up);
-  vp.addEventListener("wheel", e => { e.preventDefault(); const r = vp.getBoundingClientRect();
-    const trackpadPan = !e.ctrlKey && e.deltaMode === 0 && (Math.abs(e.deltaX) > 0 || Math.abs(e.deltaY) < 40);
-    if (trackpadPan) { S.view.x -= e.deltaX; S.view.y -= e.deltaY; applyView(); }
-    else zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? .012 : .0018)), e.clientX - r.left, e.clientY - r.top);
+  // Wheel: pinch on a trackpad (ctrl+wheel) and ⌘/Ctrl+scroll zoom; plain two-finger scroll pans; a mouse wheel zooms.
+  vp.addEventListener("wheel", e => {
+    e.preventDefault(); const [x, y] = rel(e.clientX, e.clientY);
+    const lines = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dx = e.deltaX * lines, dy = e.deltaY * lines;
+    if (e.ctrlKey || e.metaKey) return zoomAt(Math.exp(-dy * .01), x, y);
+    const mouseWheel = e.deltaMode !== 0 || (dx === 0 && Math.abs(dy) >= 50 && Number.isInteger(dy));
+    if (mouseWheel) zoomAt(Math.exp(-dy * .002), x, y);
+    else { S.view.x -= dx; S.view.y -= dy; applyView(); }
   }, { passive: false });
-  vp.addEventListener("dblclick", e => { const r = vp.getBoundingClientRect(); if (!S.tagging) zoomAt(1.8, e.clientX - r.left, e.clientY - r.top); });
+  // Safari on Mac sends trackpad pinches as gesture events; iPhone pinches are handled above as pointers.
+  let gs = null;
+  vp.addEventListener("gesturestart", e => { e.preventDefault(); gs = { z: S.view.z }; });
+  vp.addEventListener("gesturechange", e => { e.preventDefault(); if (!gs || vpPts.size >= 2) return; const [x, y] = rel(e.clientX, e.clientY); zoomAt(gs.z * e.scale / S.view.z, x, y); });
+  vp.addEventListener("gestureend", e => { e.preventDefault(); gs = null; });
+  vp.addEventListener("dblclick", e => e.preventDefault());
 }
 async function planTap(e) {
   const p = toPlan(e.clientX, e.clientY);
   if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) { if (S.tray) { S.tray = null; renderTray(); } return; }
   if (!S.tagging) { if (S.tray) { S.tray = null; renderTray(); } return; }
+  const last = S.lastAdd; if (last && Date.now() - last.t < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 24) return;
+  S.lastAdd = { t: Date.now(), x: e.clientX, y: e.clientY };
   const n = S.pins.reduce((m, q) => Math.max(m, q.n || 0), 0) + 1, id = "p" + uid();
   S.justAdded = id;
   try {
@@ -571,8 +611,8 @@ async function planTap(e) {
   } catch (err) { toast("Couldn't add the tag: " + errMsg(err)); }
 }
 function renderTags() {
-  const box = $("#tags"); if (!box) return; const { bw, bh } = baseSize();
-  box.innerHTML = S.pins.map(t => `<button class="tag s${pstate(t)} ${S.sheetPin === t.id || S.tray === t.id ? "sel" : ""} ${S.justAdded === t.id ? "new" : ""}" style="left:${t.x * bw}px;top:${t.y * bh}px" data-id="${esc(t.id)}" aria-label="${esc(tagOf(t.n) + " " + (t.item || "untitled") + ", " + stateLabel(t))}">
+  const box = $("#tags"); if (!box) return;
+  box.innerHTML = S.pins.map(t => `<button class="tag s${pstate(t)} ${S.sheetPin === t.id || S.tray === t.id ? "sel" : ""} ${S.justAdded === t.id ? "new" : ""}" style="left:${t.x * 100}%;top:${t.y * 100}%" data-id="${esc(t.id)}" aria-label="${esc(tagOf(t.n) + " " + (t.item || "untitled") + ", " + stateLabel(t))}">
     <span class="cap2"><span class="d"></span>${tagOf(t.n)}</span>${S.labels && t.item ? `<span class="lb">${esc(t.item)}</span>` : ""}</button>`).join("");
   S.justAdded = null;
   box.querySelectorAll(".tag").forEach(bindTag);
@@ -580,13 +620,14 @@ function renderTags() {
 }
 function bindTag(el) {
   let st = null;
-  el.addEventListener("pointerdown", e => { e.stopPropagation(); el.setPointerCapture(e.pointerId); st = { sx: e.clientX, sy: e.clientY, moved: false }; });
+  el.addEventListener("pointerdown", e => { if (vpPts.size) return; e.stopPropagation(); el.setPointerCapture(e.pointerId); st = { sx: e.clientX, sy: e.clientY, moved: false }; });
   el.addEventListener("pointermove", e => {
-    if (!st) return; if (!st.moved && Math.hypot(e.clientX - st.sx, e.clientY - st.sy) < 8) return;
+    if (!st) return; if (vpPts.size) { st = null; el.classList.remove("dragging"); renderTags(); return; }
+    if (!st.moved && Math.hypot(e.clientX - st.sx, e.clientY - st.sy) < 8) return;
     st.moved = true; el.classList.add("dragging");
-    const p = toPlan(e.clientX, e.clientY), { bw, bh } = baseSize();
+    const p = toPlan(e.clientX, e.clientY);
     st.x = Math.min(1, Math.max(0, p.x)); st.y = Math.min(1, Math.max(0, p.y));
-    el.style.left = st.x * bw + "px"; el.style.top = st.y * bh + "px";
+    el.style.left = st.x * 100 + "%"; el.style.top = st.y * 100 + "%";
   });
   const end = async e => {
     if (!st) return; const s = st; st = null; el.classList.remove("dragging");
@@ -803,6 +844,7 @@ async function renderSourcePage(src, page, maxW) {
   return c;
 }
 const thumbCache = {};
+const PLAN_PIXELS = 16e6; // under the iPhone canvas ceiling, sharp enough to read furniture at 10x
 function drawThumbs() {
   document.querySelectorAll("canvas[data-thumb]").forEach(async cv => {
     const src = S.sources.find(s => s.id === cv.dataset.thumb), page = +cv.dataset.page; if (!src) return;
@@ -838,22 +880,23 @@ async function uploadPlan(f) {
       const pdf = await openPdfData(await f.arrayBuffer()); let page = 1;
       if (pdf.numPages > 1) { page = await choosePage(pdf, f.name); if (!page) return; }
       toast("Rendering the plan…", 8000);
-      const pg = await pdf.getPage(page), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(3200 / v1.width, 6) });
+      const pg = await pdf.getPage(page), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(Math.sqrt(PLAN_PIXELS / (v1.width * v1.height)), 7000 / Math.max(v1.width, v1.height), 10) });
       canvas = document.createElement("canvas"); canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
       const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
       await pg.render({ canvasContext: ctx, viewport: vp }).promise;
     } else {
-      const url = URL.createObjectURL(f), im = await loadImg(url);
-      canvas = document.createElement("canvas"); canvas.width = im.naturalWidth; canvas.height = im.naturalHeight;
-      const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(im, 0, 0);
-      URL.revokeObjectURL(url); canvas = scaleCanvas(canvas, 3600);
+      const url = URL.createObjectURL(f), im = await loadImg(url), iw = im.naturalWidth, ih = im.naturalHeight;
+      const sc = Math.min(1, Math.sqrt(PLAN_PIXELS / (iw * ih)), 7000 / Math.max(iw, ih));
+      canvas = document.createElement("canvas"); canvas.width = Math.round(iw * sc); canvas.height = Math.round(ih * sc);
+      const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
     }
     const old = proj().plan?.img;
     const ref = await putBlob(await toBlob(canvas, "image/jpeg", .92));
     await dbFor(S.pid).doc(`projects/${S.pid}`).update({ plan: { img: ref, w: canvas.width, h: canvas.height } });
     if (old) delBlob(old);
-    S.view = null; S.tagging = true; render();
-    toast("Plan added. Tap each piece to tag it.", 3200);
+    S.view = null; S.tagging = false; render();
+    toast("Plan added. Zoom in, then tap Tag pieces.", 3600);
   } catch (e) { toast("Couldn't add the plan: " + errMsg(e), 4200); }
 }
 function choosePage(pdf, name) {
@@ -1316,6 +1359,12 @@ document.addEventListener("change", e => {
 });
 document.addEventListener("input", e => { if (e.target.id === "pk-q" && S.picker) { S.picker.q = e.target.value; refreshPicker(); } });
 document.addEventListener("keydown", e => {
+  if (S.tab === "plan" && S.view && $("#vp") && !e.target.closest("input,textarea,select") && !$(".modal") && !S.sheetPin) {
+    const { w, h } = vpSize();
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomAt(1.5, w / 2, h / 2); return; }
+    if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomAt(1 / 1.5, w / 2, h / 2); return; }
+    if (e.key === "0") { e.preventDefault(); fitView(); return; }
+  }
   if (e.key !== "Escape") return;
   if ($("#pop")) closePop(); else if ($("#picker")) closePicker(); else if ($("#cropper")) { C = null; $("#cropper").remove(); }
   else if ($("#opted")) $("#opted").remove(); else if (S.sheetPin) closeSheet(); else if (S.tray) { S.tray = null; renderTray(); }
