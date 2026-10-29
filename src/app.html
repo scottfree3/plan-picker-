@@ -1,0 +1,1354 @@
+<title>Plan Picker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0B0A09">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: an app shell in the Soulcurrent "Gold Dust" language — warm black and bone, citrine used only for what is chosen.
+   The plan fills the screen; a floating dock holds tagging; tags are keyed to a selection schedule. */
+:root{
+  /* dark-first: Gold Dust */
+  --bg:#0B0A09; --raise:#131210; --card:#1A1815; --line:#2A2622; --line2:#3A352F;
+  --text:#EFE8DA; --body:#BDB4A5; --muted:#9A9080; --faint:#615A50;
+  --gold:#F5C928; --gold2:#FFE34A; --gold-ink:#0B0A09; --sage:#A3B39A; --rose:#C08A76;
+  --scrim:rgba(5,4,3,.62); --planfilter:invert(.9) hue-rotate(180deg) sepia(.12);
+  --dust1:245,201,40; --dust2:239,232,218;
+  /* tag capsules sit on drawings, so they keep one look in both themes */
+  --tag-bg:#0B0A09; --tag-fg:#EFE8DA; --tag-on:#F5C928; --tag-on-fg:#0B0A09; --tag-alt:#A3B39A;
+  --serif:"Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  /* Linen with a clay accent */
+  --bg:#E8E2D7; --raise:#EEE9E0; --card:#F3EFE8; --line:#D3CBBE; --line2:#C4BBAD;
+  --text:#2A2620; --body:#544D44; --muted:#7B7266; --faint:#A0978A;
+  --gold:#A85A32; --gold2:#C27A52; --gold-ink:#F7F2EA; --sage:#5E7352; --rose:#9B4A34;
+  --scrim:rgba(42,38,32,.38); --planfilter:none; --dust1:168,90,50; --dust2:42,38,32; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#E8E2D7; --raise:#EEE9E0; --card:#F3EFE8; --line:#D3CBBE; --line2:#C4BBAD;
+  --text:#2A2620; --body:#544D44; --muted:#7B7266; --faint:#A0978A;
+  --gold:#A85A32; --gold2:#C27A52; --gold-ink:#F7F2EA; --sage:#5E7352; --rose:#9B4A34;
+  --scrim:rgba(42,38,32,.38); --planfilter:none; --dust1:168,90,50; --dust2:42,38,32; color-scheme:light}
+:root.paper{--planfilter:none}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:1.5px solid var(--gold);outline-offset:2px}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.cap{font:500 10.5px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.serif{font-family:var(--serif);font-weight:400}
+.num{font-variant-numeric:tabular-nums}
+
+#app{height:100%;display:flex;flex-direction:column}
+header.top{position:relative;flex:none;border-bottom:1px solid var(--line);background:var(--bg);overflow:hidden}
+canvas.dust{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.tb{position:relative;display:flex;align-items:flex-end;gap:12px;padding-block:14px 6px;max-width:1360px;margin:0 auto}
+.ident{flex:1;min-width:0;display:grid;gap:4px}
+.projbtn{display:flex;align-items:baseline;gap:8px;background:none;border:0;padding:0;text-align:left;min-width:0;color:var(--text)}
+.projbtn .nm{font:400 28px/1.05 var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;letter-spacing:-.005em}
+.projbtn svg{flex:none;color:var(--muted);transform:translateY(-3px)}
+.iconbtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:transparent;display:grid;place-items:center;color:var(--body);flex:none}
+.tabs{position:relative;display:flex;gap:22px;max-width:1360px;margin:0 auto;padding-block:6px 0}
+.tab{background:none;border:0;padding:8px 0 10px;font:500 11px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);border-bottom:1.5px solid transparent}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--gold)}
+.tab i{font-style:normal;color:var(--faint);margin-left:5px;letter-spacing:.04em}
+.banner{flex:none;font-size:13px;color:var(--body);padding-block:8px;border-bottom:1px solid var(--line);background:var(--raise)}
+.banner>div{max-width:1360px;margin:0 auto}
+.banner b{color:var(--text);font-weight:500}
+main{flex:1;min-height:0;position:relative}
+.scroll{height:100%;overflow:auto;-webkit-overflow-scrolling:touch}
+.wrap{max-width:1360px;margin:0 auto;padding-block:18px 120px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:transparent;color:var(--text);border-radius:999px;padding:9px 16px;font-weight:500;font-size:14px;white-space:nowrap;line-height:1.1}
+.btn.gold{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.btn.quiet{border-color:transparent;color:var(--body)}
+.btn.sm{padding:6px 12px;font-size:13px}
+.btn.danger{color:var(--rose);border-color:transparent}
+.btn[disabled]{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.hint{font-size:13px;color:var(--muted)}
+
+/* ---------- plan ---------- */
+.planview{height:100%;display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:1000px){.planview{grid-template-columns:minmax(0,1fr) 320px}}
+.vpwrap{position:relative;min-width:0;min-height:0;overflow:hidden}
+.vp{position:absolute;inset:0;touch-action:none;overflow:hidden;cursor:grab}
+.vp.tagging{cursor:crosshair}
+.layer{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.layer img{display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;filter:var(--planfilter);pointer-events:none;border-radius:2px}
+.tag{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(var(--iz,1));transform-origin:50% 50%;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;padding:6px;touch-action:none}
+.tag .cap2{display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:var(--tag-bg);color:var(--tag-fg);font:600 11px/1 var(--sans);letter-spacing:.06em;box-shadow:0 0 0 1px rgba(239,232,218,.28),0 2px 8px rgba(0,0,0,.35);white-space:nowrap}
+.tag .cap2 .d{width:6px;height:6px;border-radius:50%;border:1.2px solid var(--tag-fg);opacity:.7}
+.tag.s1 .cap2,.tag.s2 .cap2{background:var(--tag-on);color:var(--tag-on-fg);box-shadow:0 0 0 1px rgba(11,10,9,.5),0 2px 10px rgba(245,201,40,.35)}
+.tag.s1 .cap2 .d{border-color:var(--tag-on-fg);background:var(--tag-on-fg);opacity:.9}
+.tag.s2 .cap2 .d{border:0;background:var(--tag-alt);opacity:1;box-shadow:0 0 0 1.5px var(--tag-on-fg)}
+.tag .lb{font:500 10.5px/1.15 var(--sans);color:var(--tag-fg);background:rgba(11,10,9,.78);padding:2px 6px;border-radius:4px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag.sel .cap2{outline:2px solid var(--tag-on);outline-offset:3px}
+.tag.new .cap2{animation:pop .35s ease-out}
+.tag.dragging{opacity:.85}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.tag.new .cap2{animation:none}}
+.hud{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:12px;display:grid;gap:6px;z-index:3}
+.hud button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:color-mix(in srgb,var(--raise) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;color:var(--text);font-size:17px}
+.hud button[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.dock{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--raise) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line2);box-shadow:0 10px 40px rgba(0,0,0,.35);z-index:4;max-width:calc(100% - 24px)}
+.dock .roomb{display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:8px 12px;border-radius:999px;min-width:0;max-width:150px}
+.dock .roomb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.dock .roomb .cap{flex:none}
+.dock .tagbtn{display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:10px 18px;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;white-space:nowrap}
+.dock .tagbtn[aria-pressed="true"]{background:var(--gold);color:var(--gold-ink)}
+.dock .tagbtn .ring{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;display:grid;place-items:center}
+.dock .tagbtn[aria-pressed="true"] .ring::after{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.dock .listb{border:0;background:transparent;padding:8px 12px;border-radius:999px;font-size:14px;color:var(--body);white-space:nowrap}
+@media (min-width:1000px){.dock .listb{display:none}}
+.coach{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:3;font-size:13px;color:var(--text);background:color-mix(in srgb,var(--raise) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line2);border-radius:999px;padding:7px 14px;white-space:nowrap;max-width:calc(100% - 120px);overflow:hidden;text-overflow:ellipsis}
+.tray{position:absolute;left:0;right:0;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:5;display:grid;gap:8px;justify-items:center;pointer-events:none}
+.tray .tin{pointer-events:auto;width:min(680px,calc(100% - 24px));background:color-mix(in srgb,var(--raise) 94%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line2);border-radius:18px;padding:12px 12px 10px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.tray .th{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding:0 4px}
+.tray .th b{font:400 20px/1 var(--serif)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line2);background:transparent;border-radius:999px;padding:7px 13px;font-size:13.5px;color:var(--text);white-space:nowrap}
+.chip.k{border-color:var(--gold);color:var(--gold)}
+.chip:active{background:var(--card)}
+.side{border-left:1px solid var(--line);overflow:auto;display:none}
+@media (min-width:1000px){.side{display:block}}
+.plist{display:grid;padding:8px 0 120px}
+.pli{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 16px;background:none;border:0;border-bottom:1px solid var(--line);text-align:left}
+.pli:hover{background:var(--raise)}
+.pli .t{font:600 11px var(--sans);letter-spacing:.06em;color:var(--muted)}
+.pli .n{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pli .r{font-size:12px;color:var(--muted)}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);white-space:nowrap}
+.st i{width:8px;height:8px;border-radius:50%;border:1.2px solid var(--muted)}
+.st.s1 i{background:var(--gold);border-color:var(--gold)}
+.st.s2 i{background:var(--gold);border-color:var(--gold);box-shadow:4px 0 0 -1px var(--sage)}
+.empty{display:grid;justify-items:center;gap:14px;text-align:center;padding:56px 20px;position:relative}
+.empty h2{font:400 34px/1.1 var(--serif);margin:0;text-wrap:balance}
+.empty h2 em{font-style:italic;color:var(--gold)}
+.empty p{margin:0;color:var(--body);max-width:44ch}
+.empty .cap{margin-bottom:-4px}
+
+/* ---------- library ---------- */
+.lhead{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px}
+.lhead h2{font:400 30px/1.1 var(--serif);margin:0;flex:1;min-width:220px}
+section.blk{margin-top:26px}
+section.blk>header{display:flex;gap:10px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:14px}
+.src{margin-bottom:18px}
+.src .hd{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.src .hd b{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pages{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.pg{flex:none;width:104px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0;position:relative;overflow:hidden}
+.pg canvas{width:100%;height:136px;object-fit:contain;display:block}
+.pg span{position:absolute;left:6px;bottom:6px;font:600 10px var(--sans);background:var(--bg);color:var(--text);padding:3px 6px;border-radius:999px}
+.pg em{position:absolute;right:6px;top:6px;font:600 10px var(--sans);font-style:normal;background:var(--gold);color:var(--gold-ink);padding:3px 6px;border-radius:999px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+.opt{background:none;border:0;padding:0;text-align:left;display:grid;gap:8px;align-content:start;min-width:0}
+.opt .im{background:#F7F4EE;border-radius:12px;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line);max-width:100%}
+.opt .im img{max-width:88%;max-height:88%;object-fit:contain}
+.opt .nm{font-size:14px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.opt .mt{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt .use{display:flex;gap:4px;flex-wrap:wrap}
+.opt .use i{font:600 10px var(--sans);font-style:normal;padding:3px 7px;border-radius:999px;background:var(--gold);color:var(--gold-ink)}
+.opt .use i.b{background:transparent;color:var(--sage);box-shadow:inset 0 0 0 1px var(--sage)}
+.opt[aria-current="true"] .im{outline:2px solid var(--gold);outline-offset:2px}
+.search{width:100%;padding:11px 16px;border:1px solid var(--line2);border-radius:999px;background:transparent}
+
+/* ---------- schedule ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:14px 0 4px}
+.stat{padding:14px 4px}
+.stat b{display:block;font:400 30px/1 var(--serif);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.room{margin-top:30px}
+.room h3{font:400 24px/1.1 var(--serif);margin:0 0 4px;font-style:italic}
+.srow{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.srow .tg{font:600 11px var(--sans);letter-spacing:.06em;color:var(--muted);padding-top:3px;text-align:left;background:none;border:0}
+.srow .it{font-size:15px}
+.srow .it small{color:var(--muted);margin-left:8px;font-size:12.5px}
+.picks{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+@media (max-width:560px){.picks{grid-template-columns:1fr}}
+.pk{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;min-width:0}
+.pk .th{width:64px;height:50px;background:#F7F4EE;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+.pk .th img{max-width:90%;max-height:90%;object-fit:contain}
+.pk .k{font:500 9.5px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+.pk.b .k{color:var(--sage)}
+.pk .v{font-size:13.5px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk .p{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk.none .th{background:transparent;border-style:dashed}
+.pk.none .v{color:var(--faint)}
+
+/* ---------- sheets / modals ---------- */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.sheet{position:fixed;z-index:41;background:var(--raise);display:flex;flex-direction:column;left:0;right:0;bottom:0;max-height:88%;border-radius:22px 22px 0 0;border-top:1px solid var(--line2);padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -10px 40px rgba(0,0,0,.4)}
+.sheet::before{content:"";width:36px;height:4px;border-radius:2px;background:var(--line2);margin:8px auto 0;flex:none}
+@media (min-width:900px){.sheet{left:auto;top:0;width:420px;max-height:none;border-radius:0;border-top:0;border-left:1px solid var(--line2);padding-top:env(safe-area-inset-top,0px)}.sheet::before{display:none}}
+.sheet .sh{display:flex;align-items:center;gap:10px;padding:12px 0 6px}
+.sheet .sb{overflow:auto;padding-block:6px 22px;display:grid;gap:18px}
+.sheet .sh,.sheet .sb{padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+.tagid{font:600 12px var(--sans);letter-spacing:.08em;color:var(--muted)}
+.ptitle{font:400 30px/1.05 var(--serif);border:0;background:transparent;width:100%;padding:0;color:var(--text)}
+.ptitle::placeholder{color:var(--faint)}
+.fld{display:grid;gap:6px}
+.fld input,.fld textarea{width:100%;padding:10px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--bg)}
+.fld textarea{min-height:64px;resize:vertical}
+.two{display:grid;grid-template-columns:minmax(0,1fr) 90px;gap:10px}
+.slot{border:1px solid var(--line2);border-radius:16px;overflow:hidden}
+.slot .sl{display:flex;align-items:center;gap:8px;padding:10px 14px 0}
+.slot .sl .cap{color:var(--gold)}
+.slot.b .sl .cap{color:var(--sage)}
+.slot .sc{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;padding:10px 14px 14px;align-items:center;width:100%;background:none;border:0;text-align:left}
+.slot .sc .th{width:100px;height:76px;background:#F7F4EE;border-radius:10px;display:grid;place-items:center;overflow:hidden}
+.slot .sc .th img{max-width:90%;max-height:90%;object-fit:contain}
+.slot .sc .nm{font-size:15px;line-height:1.3}
+.slot .sc .mt{font-size:12.5px;color:var(--muted)}
+.slot .choose{width:100%;padding:16px 14px 18px;border:0;background:none;color:var(--text);text-align:left;font-size:14.5px}
+.slot .choose span{color:var(--muted)}
+.modal{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (min-width:900px){.modal{inset:4vh 5vw;border-radius:22px;border:1px solid var(--line2);box-shadow:0 30px 80px rgba(0,0,0,.5)}}
+.modal .mh{display:flex;align-items:center;gap:10px;padding-block:14px;border-bottom:1px solid var(--line)}
+.modal .mh h2{font:400 24px/1.1 var(--serif);margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal .mb{flex:1;overflow:auto;padding-block:18px 40px}
+.modal .mh,.modal .mb{padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+.pop{position:fixed;z-index:45;background:var(--raise);border:1px solid var(--line2);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.45);padding:8px;display:grid;gap:2px;width:min(360px,calc(100vw - 24px))}
+.pop .mi{display:flex;gap:10px;align-items:center;text-align:left;width:100%;padding:10px 12px;border:0;background:none;border-radius:12px;font-size:14.5px}
+.pop .mi:hover{background:var(--card)}
+.pop .mi[aria-current="true"]::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:auto}
+.pop .mi small{color:var(--muted);margin-left:auto;font-size:11px}
+.pop hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
+.pop form{display:flex;gap:6px;padding:6px 4px}
+.pop input{flex:1;min-width:0;padding:9px 14px;border:1px solid var(--line2);border-radius:999px;background:var(--bg)}
+.pop .cap{padding:8px 12px 4px}
+.seg{display:flex;border:1px solid var(--line2);border-radius:999px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:none;border-radius:999px;padding:7px 10px;font-size:13px;color:var(--body)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--text)}
+
+/* ---------- cropper ---------- */
+.crop{display:grid;gap:18px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.crop{grid-template-columns:minmax(0,1fr) 330px}}
+.stage{position:relative;background:#fff;border-radius:10px;line-height:0;touch-action:none;user-select:none;overflow:hidden}
+.stage canvas{width:100%;height:auto;display:block}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.cform{display:grid;gap:12px;align-content:start}
+.props{display:grid;gap:6px}
+.prop{display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px dashed var(--line2);border-radius:12px;background:none;text-align:left;font-size:13.5px}
+.prop b{font:500 10px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.prop span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;z-index:60;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.3);display:flex;gap:12px;align-items:center}
+.toast button{border:0;background:none;color:inherit;font-weight:600;text-decoration:underline;padding:0}
+.spin{display:inline-block;width:14px;height:14px;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;color:var(--body)}
+</style>
+
+<div id="app">
+  <header class="top">
+    <canvas class="dust" id="dust" aria-hidden="true"></canvas>
+    <div class="tb gut">
+      <div class="ident">
+        <span class="cap">Plan Picker</span>
+        <button class="projbtn" id="projbtn" aria-haspopup="true"><span class="nm" id="projname">&nbsp;</span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+      </div>
+      <button class="iconbtn" id="setbtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="4" cy="9" r="1.4" fill="currentColor"/><circle cx="9" cy="9" r="1.4" fill="currentColor"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/></svg></button>
+    </div>
+    <nav class="tabs gut" role="tablist">
+      <button class="tab" role="tab" data-tab="plan">Plan<i id="ct-plan"></i></button>
+      <button class="tab" role="tab" data-tab="library">Library<i id="ct-library"></i></button>
+      <button class="tab" role="tab" data-tab="schedule">Schedule</button>
+    </nav>
+  </header>
+  <div class="banner gut" id="banner" hidden><div></div></div>
+  <main id="main"></main>
+</div>
+<div id="layer2"></div>
+<input type="file" id="fPlan" accept="application/pdf,image/*" hidden>
+<input type="file" id="fSrc" accept="application/pdf,image/*" multiple hidden>
+<input type="file" id="fImport" accept="application/json,.json" hidden>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const tagOf = n => "F-" + String(n).padStart(2, "0");
+const CATS = ["Sofa","Sectional","Lounge chair","Dining chair","Counter stool","Bench","Ottoman","Coffee table","Side table","Console","Dining table","Desk","Desk chair","Bed","Nightstand","Dresser","Media console","Bookcase","Rug","Pendant","Chandelier","Floor lamp","Table lamp","Sconce","Mirror","Art","Accessory"];
+const QUICK = ["Sofa","Lounge chair","Coffee table","Side table","Rug","Dining table","Dining chair","Counter stool","Bed","Nightstand","Dresser","Pendant","Floor lamp","Table lamp","Console","Desk","Bench","Ottoman","Mirror","Art"];
+const IS_ARTIFACT = typeof window.claude === "object" && window.claude && typeof window.claude.use === "function";
+try { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } catch (e) {}
+function store(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+function recall(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+/* ================= storage ================= */
+// A document store with the same surface as the artifact's db capability.
+function makeMemDB(hooks = {}, initial) {
+  const data = initial || new Map(), ls = new Set();
+  const parent = p => p.split("/").slice(0, -1).join("/");
+  const snap = c => ({ docs: [...data].filter(([p]) => parent(p) === c).map(([p, d]) => ({ id: p.split("/").pop(), exists: true, data: () => d })) });
+  const notify = c => { for (const l of ls) if (l.c === c) l.cb(snap(c)); };
+  const doc = p => ({ id: p.split("/").pop(), path: p,
+    get: async () => ({ exists: data.has(p), data: () => data.get(p) }),
+    set: async d => { const v = JSON.parse(JSON.stringify(d)); data.set(p, v); await hooks.put?.(p, v); notify(parent(p)); },
+    update: async d => { const v = { ...(data.get(p) || {}), ...JSON.parse(JSON.stringify(d)) }; data.set(p, v); await hooks.put?.(p, v); notify(parent(p)); },
+    delete: async () => { data.delete(p); await hooks.del?.(p); notify(parent(p)); } });
+  return { doc, collection: c => ({ doc: id => doc(c + "/" + (id || uid())), get: async () => snap(c),
+    onSnapshot(cb) { const l = { c, cb }; ls.add(l); setTimeout(() => ls.has(l) && cb(snap(c))); return () => ls.delete(l); } }) };
+}
+// IndexedDB: docs and files saved on this device.
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open("plan-picker", 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore("docs"); r.result.createObjectStore("blobs"); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+const idbReq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+async function makeIDB() {
+  const idb = await idbOpen();
+  const tx = (s, m = "readonly") => idb.transaction(s, m).objectStore(s);
+  const data = new Map();
+  const keys = await idbReq(tx("docs").getAllKeys()), vals = await idbReq(tx("docs").getAll());
+  keys.forEach((k, i) => data.set(k, vals[i]));
+  const db = makeMemDB({ put: (p, v) => idbReq(tx("docs", "readwrite").put(v, p)), del: p => idbReq(tx("docs", "readwrite").delete(p)) }, data);
+  return {
+    db,
+    async putBlob(blob) { const ref = "idb:" + uid(); await idbReq(tx("blobs", "readwrite").put(blob, ref)); blobs[ref] = URL.createObjectURL(blob); return ref; },
+    async delBlob(ref) { await idbReq(tx("blobs", "readwrite").delete(ref)); if (blobs[ref]) URL.revokeObjectURL(blobs[ref]); delete blobs[ref]; },
+    async loadBlobs() { const ks = await idbReq(tx("blobs").getAllKeys()); for (const k of ks) { const b = await idbReq(tx("blobs").get(k)); if (b) blobs[k] = URL.createObjectURL(b); } }
+  };
+}
+
+/* ================= example project (drawn here, not real products) ================= */
+const svgURI = s => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s);
+function examplePlan() {
+  const W = 1200, H = 780, w = (x1,y1,x2,y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  const door = (x,y,r,a) => `<path d="M${x} ${y} l${r*Math.cos(a)} ${r*Math.sin(a)} A${r} ${r} 0 0 1 ${x+r*Math.cos(a+Math.PI/2)} ${y+r*Math.sin(a+Math.PI/2)}" fill="none" stroke="#7a827d" stroke-width="2"/>`;
+  const t = (x,y,s,sub) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Helvetica,Arial" font-size="15" letter-spacing="2" fill="#4a524d">${s}</text>` + (sub ? `<text x="${x}" y="${y+20}" text-anchor="middle" font-family="Helvetica,Arial" font-size="12" fill="#8a918c">${sub}</text>` : "");
+  const f = (d) => `<g fill="none" stroke="#9aa19c" stroke-width="2">${d}</g>`;
+  return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#fff"/>
+  <g stroke="#1e2421" stroke-width="10" stroke-linecap="square">${w(60,60,1140,60)}${w(1140,60,1140,720)}${w(60,720,1140,720)}${w(60,60,60,720)}
+  ${w(560,60,560,250)}${w(560,330,560,470)}${w(60,470,420,470)}${w(500,470,720,470)}${w(720,470,720,720)}${w(820,470,1140,470)}${w(880,60,880,180)}${w(880,260,880,470)}${w(560,470,560,520)}</g>
+  <g stroke="#1e2421" stroke-width="3" fill="none"><rect x="600" y="80" width="260" height="34"/></g>
+  ${f(`<rect x="160" y="290" width="260" height="70" rx="10"/><rect x="230" y="190" width="120" height="60" rx="30"/><rect x="420" y="130" width="70" height="70" rx="12"/><rect x="110" y="110" width="300" height="230" stroke-dasharray="8 6"/><rect x="630" y="330" width="170" height="80" rx="4"/><circle cx="715" cy="370" r="22" stroke-dasharray="4 4"/><rect x="110" y="540" width="170" height="150" rx="6"/><rect x="290" y="560" width="40" height="40"/><rect x="940" y="200" width="150" height="190" rx="6"/>`)}
+  ${door(420,470,80,0)}${door(720,470,90,Math.PI*1.5)}${door(880,180,80,Math.PI/2)}${door(560,250,80,Math.PI/2)}
+  <g fill="#dfe6f1" stroke="#9aa7bc" stroke-width="2"><rect x="60" y="56" width="180" height="8"/><rect x="300" y="56" width="180" height="8"/><rect x="1136" y="120" width="8" height="200"/><rect x="1136" y="540" width="8" height="140"/><rect x="200" y="716" width="220" height="8"/></g>
+  ${t(330,420,"LIVING","18′-4″ × 13′-0″")}${t(720,250,"KITCHEN / DINING","13′-2″ × 15′-6″")}${t(1010,430,"BEDROOM 2","10′-6″ × 13′-8″")}${t(420,640,"PRIMARY BEDROOM","14′-0″ × 9′-10″")}${t(640,600,"BATH")}${t(960,600,"ENTRY")}
+  <text x="1130" y="760" text-anchor="end" font-family="Helvetica,Arial" font-size="12" fill="#8a918c">EXAMPLE PLAN — NOT TO SCALE</text></svg>`);
+}
+function swatch(kind, c1, c2) {
+  const bg = `<rect width="400" height="300" fill="#F7F4EE"/>`, sh = `<ellipse cx="200" cy="248" rx="150" ry="12" fill="#00000012"/>`;
+  const art = {
+    sofa: `${sh}<rect x="60" y="120" width="280" height="80" rx="18" fill="${c1}"/><rect x="48" y="150" width="48" height="80" rx="16" fill="${c2}"/><rect x="304" y="150" width="48" height="80" rx="16" fill="${c2}"/><rect x="92" y="170" width="216" height="55" rx="10" fill="${c2}"/><rect x="70" y="232" width="10" height="16" fill="#3b3330"/><rect x="320" y="232" width="10" height="16" fill="#3b3330"/>`,
+    chair: `${sh}<path d="M130 90 Q200 60 270 90 L262 190 L138 190 Z" fill="${c1}"/><rect x="120" y="170" width="160" height="50" rx="14" fill="${c2}"/><rect x="138" y="220" width="8" height="28" fill="#3b3330"/><rect x="254" y="220" width="8" height="28" fill="#3b3330"/>`,
+    oval: `${sh}<ellipse cx="200" cy="170" rx="150" ry="44" fill="${c2}"/><ellipse cx="200" cy="160" rx="150" ry="44" fill="${c1}"/><rect x="150" y="180" width="100" height="62" fill="${c2}"/>`,
+    round: `${sh}<ellipse cx="200" cy="150" rx="120" ry="34" fill="${c1}"/><path d="M80 150 v12 a120 34 0 0 0 240 0 v-12" fill="${c2}"/><rect x="186" y="176" width="28" height="70" fill="${c2}"/>`,
+    dining: `${sh}<rect x="40" y="120" width="320" height="22" fill="${c1}"/><rect x="62" y="142" width="14" height="104" fill="${c2}"/><rect x="324" y="142" width="14" height="104" fill="${c2}"/>`,
+    rug: `<rect width="400" height="300" fill="#F7F4EE"/><rect x="50" y="40" width="300" height="220" fill="${c1}"/><rect x="72" y="62" width="256" height="176" fill="none" stroke="${c2}" stroke-width="10"/><path d="M110 150h180M200 90v120" stroke="${c2}" stroke-width="4"/>`,
+    bed: `${sh}<rect x="70" y="80" width="260" height="110" rx="10" fill="${c2}"/><rect x="50" y="160" width="300" height="70" rx="8" fill="${c1}"/><rect x="88" y="140" width="100" height="36" rx="12" fill="#fbfaf6"/><rect x="212" y="140" width="100" height="36" rx="12" fill="#fbfaf6"/>`,
+    pendant: `<line x1="200" y1="0" x2="200" y2="90" stroke="#3b3330" stroke-width="3"/><circle cx="200" cy="160" r="72" fill="${c1}"/><circle cx="178" cy="140" r="22" fill="#ffffff66"/>`
+  }[kind];
+  return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">${bg}${art}</svg>`);
+}
+function seedExample(db) {
+  const P = "projects/example";
+  db.doc(P).set({ name: "Example · Lakeview 2BR", example: true, plan: { img: examplePlan(), w: 1200, h: 780 }, createdAt: 0 });
+  [["o1","Harbor 3-seat sofa","Sofa","Sample vendor A","$4,200",swatch("sofa","#8d9b8a","#a7b3a3")],
+   ["o2","Loma bouclé sofa","Sofa","Sample vendor B","$5,850",swatch("sofa","#e4ded2","#efe9de")],
+   ["o3","Pilar lounge chair","Lounge chair","Sample vendor A","$2,100",swatch("chair","#b9733f","#c98a57")],
+   ["o4","Oval travertine coffee table","Coffee table","Sample vendor C","$2,950",swatch("oval","#e3d6bf","#cdbd9f")],
+   ["o5","Round walnut coffee table","Coffee table","Sample vendor B","$1,780",swatch("round","#7a4e31","#5f3b24")],
+   ["o6","Ash dining table, 84 in","Dining table","Sample vendor C","$3,400",swatch("dining","#d8bf98","#b99c74")],
+   ["o7","Wool flatweave rug, 9×12","Rug","Sample vendor D","$1,650",swatch("rug","#c9c2b4","#8a7f6e")],
+   ["o8","Linen upholstered bed, queen","Bed","Sample vendor A","$3,100",swatch("bed","#b8b0a2","#9a9284")],
+   ["o9","Opal globe pendant","Pendant","Sample vendor D","$890",swatch("pendant","#f6f1e4","#fff")]
+  ].forEach(([id,name,category,vendor,price,img], i) => db.doc(`${P}/options/${id}`).set({ name, category, vendor, price, img, link: "", createdAt: i }));
+  [[1,"Sofa","Living",.24,.42,"o1","o2"],[2,"Lounge chair","Living",.38,.21,"o3",""],[3,"Coffee table","Living",.25,.28,"o4","o5"],
+   [4,"Rug","Living",.13,.22,"",""],[5,"Dining table","Kitchen / Dining",.6,.47,"o6",""],[6,"Pendant","Kitchen / Dining",.6,.39,"",""],
+   [7,"Bed","Primary bedroom",.16,.79,"o8",""]
+  ].forEach(([n,item,room,x,y,first,backup]) => db.doc(`${P}/pins/p${n}`).set({ n, item, room, qty: 1, notes: "", x, y, first, backup, createdAt: n }));
+}
+
+/* ================= state ================= */
+const blobs = {};
+const S = { mode: "memory", db: null, idb: null, assets: null, sample: null, aiOK: false, downloads: null, ex: makeMemDB(),
+  exProjects: [], mainProjects: [], projects: [], pid: null, pins: [], options: [], sources: [],
+  tab: "plan", tagging: false, room: recall("pp.room") || "", labels: true, sheetPin: null, tray: null, ready: false };
+seedExample(S.ex);
+const dbFor = pid => pid === "example" ? S.ex : S.db;
+const proj = () => S.projects.find(p => p.id === S.pid);
+const imgURL = r => !r ? "" : r.startsWith("data:") ? r : (r.startsWith("local:") || r.startsWith("idb:")) ? (blobs[r] || "") : "/_blob/" + encodeURIComponent(r);
+async function putBlob(blob) {
+  if (S.pid !== "example" && S.mode === "cloud") { if (!S.assets) throw new Error("Only editors of this page can upload files"); return (await S.assets.upload(blob)).id; }
+  if (S.pid !== "example" && S.mode === "idb") return S.idb.putBlob(blob);
+  const ref = "local:" + uid(); blobs[ref] = URL.createObjectURL(blob); return ref;
+}
+function delBlob(ref) {
+  if (!ref || ref.startsWith("data:")) return;
+  if (ref.startsWith("idb:")) S.idb?.delBlob(ref).catch(() => {});
+  else if (ref.startsWith("local:")) { URL.revokeObjectURL(blobs[ref]); delete blobs[ref]; }
+  else S.assets?.delete(ref).catch(() => {});
+}
+const canUpload = () => S.pid === "example" || S.mode !== "cloud" || !!S.assets;
+const optById = id => S.options.find(o => o.id === id);
+const pinById = id => S.pins.find(p => p.id === id);
+const priceNum = s => { const m = String(s || "").replace(/,/g, "").match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : 0; };
+const money = n => "$" + Math.round(n).toLocaleString("en-US");
+const pstate = p => p.first && p.backup ? 2 : p.first ? 1 : 0;
+const stateLabel = p => ["Open", "First pick", "First + backup"][pstate(p)];
+function toast(msg, ms = 2600, action) {
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
+  const s = document.createElement("span"); s.textContent = msg; t.append(s);
+  if (action) { const b = document.createElement("button"); b.textContent = action.label; b.onclick = () => { t.remove(); action.fn(); }; t.append(b); }
+  document.body.append(t); setTimeout(() => t.remove(), ms);
+}
+const errMsg = e => (e && (e.message || e.code)) || "something went wrong";
+
+/* ================= gold dust ================= */
+function drawDust() {
+  const c = $("#dust"); if (!c) return; const r = c.getBoundingClientRect(), d = devicePixelRatio || 1;
+  c.width = r.width * d; c.height = r.height * d; const x = c.getContext("2d"); x.scale(d, d);
+  const cs = getComputedStyle(document.documentElement), a = cs.getPropertyValue("--dust1").trim(), b = cs.getPropertyValue("--dust2").trim();
+  let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const n = Math.round(r.width / 9);
+  for (let i = 0; i < n; i++) {
+    const px = r.width * (.35 + .65 * rnd() ** .7), py = r.height * rnd(), sz = .3 + 1.2 * rnd() ** 3, al = .15 + .55 * rnd();
+    x.fillStyle = `rgba(${rnd() < .55 ? a : b},${al * .08})`; x.beginPath(); x.arc(px, py, sz * 4, 0, 7); x.fill();
+    x.fillStyle = `rgba(${rnd() < .55 ? a : b},${al})`; x.beginPath(); x.arc(px, py, sz, 0, 7); x.fill();
+  }
+}
+
+/* ================= subscriptions ================= */
+let unsubs = [];
+const toList = snap => snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+function mergeProjects() {
+  S.projects = [...S.exProjects, ...S.mainProjects];
+  const real = S.mainProjects;
+  if (!S.projects.find(p => p.id === S.pid) || (S.pid === "example" && S.autoExample && real.length)) {
+    const want = recall("pp.pid"), next = want && real.find(p => p.id === want) ? want : real.length ? real[real.length - 1].id : "example";
+    S.autoExample = next === "example"; openProject(next);
+  } else { const p = proj(); if (!S.rendered || (p.plan?.img || "") !== S.renderedPlan) render(); else renderHeader(); }
+}
+function openProject(pid) {
+  if (pid === S.pid) return;
+  unsubs.forEach(u => u()); unsubs = [];
+  closeAll(); S.pid = pid; S.pins = []; S.options = []; S.sources = []; S.tagging = false; S.view = null; S.tray = null;
+  if (pid !== "example") store("pp.pid", pid);
+  const db = dbFor(pid), base = "projects/" + pid;
+  unsubs.push(db.collection(base + "/pins").onSnapshot(s => { S.pins = toList(s).sort((a, b) => a.n - b.n); onPins(); }, e => toast("Couldn't load tags: " + errMsg(e))));
+  unsubs.push(db.collection(base + "/options").onSnapshot(s => { S.options = toList(s); onOptions(); }, e => toast("Couldn't load the library: " + errMsg(e))));
+  unsubs.push(db.collection(base + "/sources").onSnapshot(s => { S.sources = toList(s); if (S.tab === "library") render(); }));
+  render();
+}
+function onPins() {
+  if (S.tab === "plan") { renderTags(); renderSide(); } else render();
+  renderHeader(); refreshSheet(); renderTray();
+  if (S.pendingSheet && pinById(S.pendingSheet)) { const i = S.pendingSheet; S.pendingSheet = null; openSheet(i); }
+}
+function onOptions() { if (S.tab !== "plan") render(); renderHeader(); refreshSheet(); refreshPicker(); drawBoxes(); }
+
+/* ================= header ================= */
+function renderHeader() {
+  const p = proj();
+  $("#projname").textContent = p ? p.name : " ";
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === S.tab));
+  $("#ct-plan").textContent = S.pins.length || "";
+  $("#ct-library").textContent = S.options.length || "";
+  const b = $("#banner"), msg =
+    S.pid === "example" ? `<b>Example project.</b> The drawing and products are placeholders and reset on reload. Start your own from the project name above.` :
+    S.ready && S.mode === "memory" ? `<b>Not saving here.</b> This view can't store projects, so work stays only while the page is open.` :
+    S.mode === "cloud" && !S.assets ? `<b>Uploads are for editors.</b> You can tag and choose; only editors of this page can upload plans and PDFs.` : "";
+  b.hidden = !msg; b.firstElementChild.innerHTML = msg;
+}
+
+/* ================= main render ================= */
+function render() {
+  renderHeader();
+  const m = $("#main"), p = proj();
+  S.rendered = !!p; S.renderedPlan = p?.plan?.img || "";
+  if (!p) { m.innerHTML = `<div class="empty"><span class="spin"></span></div>`; return; }
+  if (S.tab === "plan") return renderPlan(p);
+  m.innerHTML = `<div class="scroll" id="scroller"><div class="wrap gut">${S.tab === "library" ? renderLibrary() : renderSchedule()}</div></div>`;
+  if (S.tab === "library") drawThumbs();
+}
+
+/* ---------- plan: viewport with pan, pinch and wheel zoom ---------- */
+function renderPlan(p) {
+  const m = $("#main");
+  if (!p.plan) {
+    m.innerHTML = `<div class="scroll"><div class="wrap gut"><div class="empty"><span class="cap">Step one</span><h2>Bring in the <em>furniture plan</em></h2>
+      <p>Upload the plan as a PDF or an image. Then tap each piece drawn on it to tag it, and choose a first pick and a backup from the vendor PDFs.</p>
+      ${canUpload() ? `<button class="btn gold" data-act="upplan">Upload floorplan</button>` : `<p class="hint">Only editors of this page can upload.</p>`}</div></div></div>`;
+    return;
+  }
+  m.innerHTML = `<div class="planview"><div class="vpwrap">
+      <div class="vp ${S.tagging ? "tagging" : ""}" id="vp"><div class="layer" id="lyr"><img id="planimg" src="${esc(imgURL(p.plan.img))}" alt="Floorplan" draggable="false"><div id="tags"></div></div></div>
+      <div class="coach" id="coach" ${S.tagging ? "" : "hidden"}>Tap each piece on the plan</div>
+      <div class="hud">
+        <button data-act="zoomin" aria-label="Zoom in">+</button><button data-act="zoomout" aria-label="Zoom out">−</button>
+        <button data-act="fit" aria-label="Fit plan to screen"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+        <button data-act="labels" aria-pressed="${S.labels}" aria-label="Show names on tags"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.4"/></svg></button>
+        <button data-act="paper" aria-pressed="${document.documentElement.classList.contains("paper")}" aria-label="Show drawing on white"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="10" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 6h5M5.5 9h5" stroke="currentColor" stroke-width="1.2"/></svg></button>
+      </div>
+      <div class="tray" id="tray"></div>
+      <div class="dock">
+        <button class="roomb" data-act="roompick"><span class="cap">Room</span><span id="roomname">${esc(S.room || "Any")}</span></button>
+        <button class="tagbtn" data-act="tagmode" aria-pressed="${S.tagging}"><span class="ring"></span>${S.tagging ? "Done" : "Tag pieces"}</button>
+        <button class="listb" data-act="list">${S.pins.length} tagged</button>
+      </div>
+    </div><aside class="side" id="side"></aside></div>`;
+  const img = $("#planimg");
+  const start = () => { bindViewport(); if (!S.view) fitView(); else applyView(); renderTags(); renderSide(); renderTray(); };
+  if (img.complete && img.naturalWidth) start(); else { img.onload = start; img.onerror = () => toast("The plan image didn't load. Try replacing the floorplan from the project menu.", 5000); }
+}
+function vpSize() { const v = $("#vp"); return v ? { w: v.clientWidth, h: v.clientHeight } : { w: 1, h: 1 }; }
+function baseSize() { const p = proj(), { w, h } = vpSize(), ar = p.plan.w / p.plan.h; let bw = w - 32, bh = bw / ar; if (bh > h - 140) { bh = h - 140; bw = bh * ar; } return { bw: Math.max(bw, 100), bh: Math.max(bh, 100 / ar) }; }
+function fitView() { const { w, h } = vpSize(), { bw, bh } = baseSize(); S.view = { z: 1, x: (w - bw) / 2, y: Math.max(12, (h - 76 - bh) / 2) }; applyView(); }
+function applyView() {
+  const l = $("#lyr"); if (!l || !S.view) return; const { bw, bh } = baseSize();
+  l.style.width = bw + "px"; l.style.height = bh + "px";
+  l.style.transform = `translate(${S.view.x}px,${S.view.y}px) scale(${S.view.z})`;
+  l.style.setProperty("--iz", (1 / S.view.z).toFixed(4));
+}
+function zoomAt(f, cx, cy) {
+  const v = S.view, z = Math.min(10, Math.max(.6, v.z * f)), k = z / v.z;
+  v.x = cx - (cx - v.x) * k; v.y = cy - (cy - v.y) * k; v.z = z; applyView();
+}
+function toPlan(clientX, clientY) {
+  const r = $("#vp").getBoundingClientRect(), { bw, bh } = baseSize(), v = S.view;
+  return { x: (clientX - r.left - v.x) / (bw * v.z), y: (clientY - r.top - v.y) / (bh * v.z) };
+}
+function bindViewport() {
+  const vp = $("#vp"); const pts = new Map(); let g = null;
+  vp.addEventListener("pointerdown", e => {
+    if (e.target.closest(".tag")) return;
+    vp.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const r = vp.getBoundingClientRect();
+    if (pts.size === 1) g = { kind: "pan", sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, t: Date.now(), moved: false };
+    else if (pts.size === 2) { const [a, b] = [...pts.values()]; g = { kind: "pinch", d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2 - r.left, my: (a.y + b.y) / 2 - r.top, z: S.view.z, vx: S.view.x, vy: S.view.y, moved: true }; }
+  });
+  vp.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId) || !g) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const r = vp.getBoundingClientRect();
+    if (g.kind === "pan" && pts.size === 1) {
+      const dx = e.clientX - g.sx, dy = e.clientY - g.sy; if (Math.abs(dx) + Math.abs(dy) > 6) g.moved = true;
+      if (g.moved) { S.view.x = g.vx + dx; S.view.y = g.vy + dy; applyView(); }
+    } else if (g.kind === "pinch" && pts.size === 2) {
+      const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top;
+      const z = Math.min(10, Math.max(.6, g.z * d / g.d)), wx = (g.mx - g.vx) / g.z, wy = (g.my - g.vy) / g.z;
+      S.view.z = z; S.view.x = mx - wx * z; S.view.y = my - wy * z; applyView();
+    }
+  });
+  const up = e => {
+    if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId);
+    if (g && g.kind === "pan" && !g.moved && pts.size === 0 && Date.now() - g.t < 600) planTap(e);
+    if (pts.size === 0) g = null; else if (pts.size === 1) { const [p] = [...pts.values()]; g = { kind: "pan", sx: p.x, sy: p.y, vx: S.view.x, vy: S.view.y, t: 0, moved: true }; }
+  };
+  vp.addEventListener("pointerup", up); vp.addEventListener("pointercancel", up);
+  vp.addEventListener("wheel", e => { e.preventDefault(); const r = vp.getBoundingClientRect();
+    const trackpadPan = !e.ctrlKey && e.deltaMode === 0 && (Math.abs(e.deltaX) > 0 || Math.abs(e.deltaY) < 40);
+    if (trackpadPan) { S.view.x -= e.deltaX; S.view.y -= e.deltaY; applyView(); }
+    else zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? .012 : .0018)), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  vp.addEventListener("dblclick", e => { const r = vp.getBoundingClientRect(); if (!S.tagging) zoomAt(1.8, e.clientX - r.left, e.clientY - r.top); });
+}
+async function planTap(e) {
+  const p = toPlan(e.clientX, e.clientY);
+  if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) { if (S.tray) { S.tray = null; renderTray(); } return; }
+  if (!S.tagging) { if (S.tray) { S.tray = null; renderTray(); } return; }
+  const n = S.pins.reduce((m, q) => Math.max(m, q.n || 0), 0) + 1, id = "p" + uid();
+  S.justAdded = id;
+  try {
+    await dbFor(S.pid).doc(`projects/${S.pid}/pins/${id}`).set({ n, item: "", room: S.room || "", qty: 1, notes: "", x: p.x, y: p.y, first: "", backup: "", createdAt: Date.now() });
+    S.tray = id; renderTray();
+  } catch (err) { toast("Couldn't add the tag: " + errMsg(err)); }
+}
+function renderTags() {
+  const box = $("#tags"); if (!box) return; const { bw, bh } = baseSize();
+  box.innerHTML = S.pins.map(t => `<button class="tag s${pstate(t)} ${S.sheetPin === t.id || S.tray === t.id ? "sel" : ""} ${S.justAdded === t.id ? "new" : ""}" style="left:${t.x * bw}px;top:${t.y * bh}px" data-id="${esc(t.id)}" aria-label="${esc(tagOf(t.n) + " " + (t.item || "untitled") + ", " + stateLabel(t))}">
+    <span class="cap2"><span class="d"></span>${tagOf(t.n)}</span>${S.labels && t.item ? `<span class="lb">${esc(t.item)}</span>` : ""}</button>`).join("");
+  S.justAdded = null;
+  box.querySelectorAll(".tag").forEach(bindTag);
+  const lb = document.querySelector(".listb"); if (lb) lb.textContent = S.pins.length + " tagged";
+}
+function bindTag(el) {
+  let st = null;
+  el.addEventListener("pointerdown", e => { e.stopPropagation(); el.setPointerCapture(e.pointerId); st = { sx: e.clientX, sy: e.clientY, moved: false }; });
+  el.addEventListener("pointermove", e => {
+    if (!st) return; if (!st.moved && Math.hypot(e.clientX - st.sx, e.clientY - st.sy) < 8) return;
+    st.moved = true; el.classList.add("dragging");
+    const p = toPlan(e.clientX, e.clientY), { bw, bh } = baseSize();
+    st.x = Math.min(1, Math.max(0, p.x)); st.y = Math.min(1, Math.max(0, p.y));
+    el.style.left = st.x * bw + "px"; el.style.top = st.y * bh + "px";
+  });
+  const end = async e => {
+    if (!st) return; const s = st; st = null; el.classList.remove("dragging");
+    if (s.moved && s.x != null) { await savePin(el.dataset.id, { x: s.x, y: s.y }); }
+    else if (e.type === "pointerup") { S.tray = null; renderTray(); openSheet(el.dataset.id); }
+  };
+  el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSheet(el.dataset.id); } });
+}
+function renderSide() {
+  const s = $("#side"); if (!s) return;
+  s.innerHTML = `<div class="gut" style="padding-block:16px 6px"><span class="cap">Tagged pieces</span></div>${pinListHTML()}`;
+}
+function pinListHTML() {
+  if (!S.pins.length) return `<p class="hint gut">Nothing tagged yet. Tap <b>Tag pieces</b>, then tap each sofa, chair, table and light drawn on the plan.</p>`;
+  return `<div class="plist">${S.pins.map(t => `<button class="pli" data-act="focuspin" data-id="${esc(t.id)}"><span class="t">${tagOf(t.n)}</span><span style="min-width:0"><div class="n">${esc(t.item || "Untitled")}</div><div class="r">${esc(t.room || "No room")}</div></span><span class="st s${pstate(t)}"><i></i>${["Open","First","Both"][pstate(t)]}</span></button>`).join("")}</div>`;
+}
+function renderTray() {
+  const tr = $("#tray"); if (!tr) return; const t = S.tray && pinById(S.tray);
+  if (!t) { tr.innerHTML = ""; return; }
+  const last = [...S.pins].reverse().find(q => q.id !== t.id && q.item);
+  const chips = [...new Set([last?.item, ...QUICK].filter(Boolean))];
+  tr.innerHTML = `<div class="tin" role="dialog" aria-label="Name ${tagOf(t.n)}">
+    <div class="th"><b>${tagOf(t.n)}</b><span class="hint" style="flex:1">${t.item ? esc(t.item) + (t.room ? " · " + esc(t.room) : "") : "What is it?" + (t.room ? " · " + esc(t.room) : "")}</span>
+      <button class="btn sm quiet" data-act="undotag">Undo</button><button class="btn sm" data-act="opentray">Details</button></div>
+    <div class="chips">${chips.map((c, i) => `<button class="chip ${i === 0 && last && c === last.item ? "k" : ""} " data-act="quickname" data-v="${esc(c)}">${i === 0 && last && c === last.item ? "Another " + esc(c.toLowerCase()) : esc(c)}</button>`).join("")}</div></div>`;
+}
+
+/* ---------- library ---------- */
+function usageOf(oid) { return S.pins.flatMap(p => [p.first === oid ? `<i>${tagOf(p.n)}</i>` : "", p.backup === oid ? `<i class="b">${tagOf(p.n)}</i>` : ""]).join(""); }
+function optCard(o, act, extra = "") {
+  return `<button class="opt" data-act="${act}" data-id="${esc(o.id)}" ${extra}><div class="im"><img src="${esc(imgURL(o.img))}" alt="" loading="lazy"></div>
+    <div><div class="nm">${esc(o.name || "Unnamed piece")}</div><div class="mt">${esc([o.vendor, o.price].filter(Boolean).join(" · ") || o.category || "")}</div></div><div class="use">${usageOf(o.id)}</div></button>`;
+}
+function renderLibrary() {
+  const up = canUpload();
+  return `<div class="lhead"><h2>Vendor pages and pieces</h2>${up ? `<button class="btn gold" data-act="upsrc">Upload PDF or images</button>` : ""}</div>
+  <p class="hint" style="margin:0;max-width:62ch">Open a page and drag a box around each product to cut it into the library. Pieces you cut become the choices for every tag.</p>
+  <section class="blk"><header><span class="cap">Sources</span><span class="hint">${S.sources.length}</span></header>
+    ${S.sources.length ? S.sources.map(s => `<div class="src"><div class="hd"><b>${esc(s.name)}</b><span class="hint num">${s.pages} page${s.pages > 1 ? "s" : ""}</span><span class="sp"></span>
+      <span id="dz-${esc(s.id)}"><button class="btn sm danger" data-act="askdelsrc" data-id="${esc(s.id)}">Remove</button></span></div>
+      <div class="pages">${Array.from({ length: s.pages }, (_, i) => { const n = S.options.filter(o => o.sourceId === s.id && o.page === i + 1).length;
+        return `<button class="pg" data-act="crop" data-id="${esc(s.id)}" data-page="${i + 1}" aria-label="Open page ${i + 1}"><canvas data-thumb="${esc(s.id)}" data-page="${i + 1}" width="104" height="136"></canvas><span>${i + 1}</span>${n ? `<em>${n}</em>` : ""}</button>`; }).join("")}</div></div>`).join("")
+      : `<p class="hint">No vendor PDFs yet.${up ? " Upload a furniture presentation or spec sheet to start cutting out options." : ""}</p>`}
+  </section>
+  <section class="blk"><header><span class="cap">Library</span><span class="hint">${S.options.length} piece${S.options.length === 1 ? "" : "s"}</span></header>
+    ${S.options.length ? `<div class="grid">${S.options.map(o => optCard(o, "editopt")).join("")}</div>` : `<p class="hint">Pieces you cut from the PDFs show up here.</p>`}
+  </section>`;
+}
+
+/* ---------- schedule ---------- */
+function renderSchedule() {
+  const pins = S.pins, f = pins.filter(p => p.first).length, b = pins.filter(p => p.backup).length;
+  const tot = pins.reduce((a, p) => a + (p.first ? priceNum((optById(p.first) || {}).price) * (p.qty || 1) : 0), 0);
+  const totB = pins.reduce((a, p) => { const o = optById(p.backup) || optById(p.first); return a + (o ? priceNum(o.price) * (p.qty || 1) : 0); }, 0);
+  const rooms = {}; pins.forEach(p => (rooms[p.room || "Unassigned"] ||= []).push(p));
+  const pk = (oid, k, cls) => { const o = optById(oid); return o ? `<div class="pk ${cls}"><div class="th"><img src="${esc(imgURL(o.img))}" alt=""></div><div style="min-width:0"><div class="k">${k}</div><div class="v">${esc(o.name)}</div><div class="p">${esc([o.vendor, o.price].filter(Boolean).join(" · "))}</div></div></div>`
+    : `<div class="pk ${cls} none"><div class="th"></div><div><div class="k">${k}</div><div class="v">Not chosen</div></div></div>`; };
+  return `<div class="lhead"><h2>Selection schedule</h2>${pins.length ? `<button class="btn" data-act="csv">Export CSV</button><button class="btn gold" data-act="report">Make report</button>` : ""}</div>
+  <div class="stats"><div class="stat"><b>${pins.length}</b><span>pieces tagged</span></div><div class="stat"><b>${f}<span class="hint" style="font-size:18px">/${pins.length}</span></b><span>with a first pick</span></div>
+    <div class="stat"><b>${b}<span class="hint" style="font-size:18px">/${pins.length}</span></b><span>with a backup</span></div><div class="stat"><b>${money(tot)}</b><span>first picks, list price</span></div><div class="stat"><b>${money(totB)}</b><span>if every backup is used</span></div></div>
+  ${pins.length ? Object.entries(rooms).map(([r, list]) => `<div class="room"><h3>${esc(r)}</h3>${list.map(p => `<div class="srow"><button class="tg" data-act="openpin" data-id="${esc(p.id)}">${tagOf(p.n)}</button><div style="min-width:0">
+    <div class="it">${esc(p.item || "Untitled")}${(p.qty || 1) > 1 ? `<small>× ${p.qty}</small>` : ""}${p.notes ? `<small>${esc(p.notes)}</small>` : ""}</div>
+    <div class="picks">${pk(p.first, "First pick", "")}${pk(p.backup, "Backup", "b")}</div></div></div>`).join("")}</div>`).join("")
+    : `<div class="empty"><p>Tag pieces on the plan to build the schedule.</p></div>`}`;
+}
+
+/* ================= tag detail sheet ================= */
+function openSheet(id) {
+  const p = pinById(id); if (!p) { S.pendingSheet = id; return; }
+  S.sheetPin = id; closePop();
+  const rooms = [...new Set(S.pins.map(x => x.room).filter(Boolean))];
+  $("#layer2").innerHTML = `<div class="scrim" data-act="closesheet"></div><div class="sheet" role="dialog" aria-label="${tagOf(p.n)}">
+    <div class="sh"><span class="tagid">${tagOf(p.n)}</span><span class="st s${pstate(p)}" id="pst"><i></i>${stateLabel(p)}</span><span class="sp"></span><button class="btn sm" data-act="closesheet">Done</button></div>
+    <div class="sb">
+      <input class="ptitle" id="pf-item" list="dl-cats" value="${esc(p.item)}" placeholder="Name this piece" data-pf="item" aria-label="Piece">
+      <div class="two"><label class="fld"><span class="cap">Room</span><input id="pf-room" list="dl-rooms" value="${esc(p.room)}" placeholder="Living" data-pf="room"></label>
+        <label class="fld"><span class="cap">Qty</span><input id="pf-qty" type="number" min="1" inputmode="numeric" value="${p.qty || 1}" data-pf="qty"></label></div>
+      <div id="slots"></div>
+      <label class="fld"><span class="cap">Notes</span><textarea id="pf-notes" data-pf="notes" placeholder="Fabric, finish, size, lead time">${esc(p.notes)}</textarea></label>
+      <div id="pindel" class="row"><button class="btn sm danger" data-act="askdelpin">Delete tag</button><span class="hint">Drag a tag on the plan to move it.</span></div>
+    </div></div>
+    <datalist id="dl-cats">${CATS.map(c => `<option value="${c}">`).join("")}</datalist><datalist id="dl-rooms">${rooms.map(c => `<option value="${esc(c)}">`).join("")}</datalist>`;
+  refreshSheet(); renderTags();
+}
+function slotHTML(p, key, label) {
+  const o = optById(p[key]);
+  return `<div class="slot ${key === "backup" ? "b" : ""}"><div class="sl"><span class="cap">${label}</span><span class="sp"></span>${o ? `<button class="btn sm quiet" data-act="clearslot" data-slot="${key}">Clear</button>` : ""}</div>
+    ${o ? `<button class="sc" data-act="pick" data-slot="${key}"><div class="th"><img src="${esc(imgURL(o.img))}" alt=""></div><div style="min-width:0"><div class="nm">${esc(o.name)}</div><div class="mt">${esc([o.vendor, o.price].filter(Boolean).join(" · "))}</div><div class="mt" style="margin-top:4px;color:var(--body)">Tap to change</div></div></button>`
+      : `<button class="choose" data-act="pick" data-slot="${key}">Choose ${label.toLowerCase()} <span>from the library →</span></button>`}</div>`;
+}
+function refreshSheet() {
+  if (!S.sheetPin) return; const p = pinById(S.sheetPin);
+  if (!p) { closeSheet(); return; }
+  const sl = $("#slots"); if (!sl) return;
+  sl.innerHTML = `<div style="display:grid;gap:10px">${slotHTML(p, "first", "First pick")}${slotHTML(p, "backup", "Backup")}
+    ${p.first || p.backup ? `<button class="btn sm quiet" data-act="swap" style="justify-self:start">⇅ Swap first and backup</button>` : ""}</div>`;
+  const st = $("#pst"); if (st) { st.className = "st s" + pstate(p); st.innerHTML = `<i></i>${stateLabel(p)}`; }
+}
+function closeSheet() { if (!S.sheetPin) return; S.sheetPin = null; $("#layer2").innerHTML = ""; renderTags(); }
+const pinDoc = id => dbFor(S.pid).doc(`projects/${S.pid}/pins/${id}`);
+async function savePin(id, data) { try { await pinDoc(id).update(data); } catch (e) { toast("Couldn't save: " + errMsg(e)); } }
+function focusPin(id) {
+  const t = pinById(id); if (!t) return;
+  if (S.tab !== "plan") { S.tab = "plan"; render(); }
+  setTimeout(() => {
+    if (S.view) { const { w, h } = vpSize(), { bw, bh } = baseSize(); S.view.z = Math.max(S.view.z, 2); S.view.x = w / 2 - t.x * bw * S.view.z; S.view.y = (h - 120) / 2 - t.y * bh * S.view.z; applyView(); }
+    openSheet(id);
+  }, 30);
+}
+
+/* ================= popovers: projects, rooms, settings, list ================= */
+function closePop() { $("#pop")?.remove(); $("#popscrim")?.remove(); }
+function showPop(html, anchor, place = "below") {
+  closePop();
+  const sc = document.createElement("div"); sc.className = "scrim"; sc.id = "popscrim"; sc.style.background = "transparent"; sc.dataset.act = "closepop";
+  const p = document.createElement("div"); p.className = "pop"; p.id = "pop"; p.innerHTML = html;
+  document.body.append(sc, p);
+  const r = anchor.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
+  let left = Math.min(Math.max(12, r.left + r.width / 2 - pw / 2), innerWidth - pw - 12);
+  if (place === "left-below") left = Math.max(12, Math.min(r.left, innerWidth - pw - 12));
+  if (place === "right-below") left = Math.max(12, r.right - pw);
+  p.style.left = left + "px";
+  p.style.top = (place === "above" ? Math.max(12, r.top - ph - 10) : r.bottom + 8) + "px";
+  p.querySelector("input[autofocus]")?.focus();
+}
+function openProjectMenu() {
+  const p = proj();
+  showPop(`<div class="cap">Projects</div>
+    ${[...S.mainProjects].reverse().map(x => `<button class="mi" data-act="pickproj" data-id="${esc(x.id)}" aria-current="${x.id === S.pid}">${esc(x.name)}</button>`).join("")}
+    ${S.exProjects.map(x => `<button class="mi" data-act="pickproj" data-id="example" aria-current="${S.pid === "example"}">${esc(x.name)}<small>example</small></button>`).join("")}
+    <hr><form data-form="newproj"><input id="np-name" placeholder="New project, e.g. 2126 N Sawyer" aria-label="New project name"><button class="btn gold sm">Create</button></form>
+    ${p && p.id !== "example" ? `<hr><form data-form="rename"><input id="rn-name" value="${esc(p.name)}" aria-label="Rename project"><button class="btn sm">Rename</button></form>
+      ${p.plan && canUpload() ? `<button class="mi" data-act="replaceplan">Replace floorplan…</button>` : ""}
+      <div id="delzone"><button class="mi" data-act="askdelproj" style="color:var(--rose)">Delete project…</button></div>` : ""}`, $("#projbtn"), "left-below");
+}
+function openSettings() {
+  const theme = recall("pp.theme") || "system", key = recall("pp.key") || "";
+  showPop(`<div class="cap">This project</div>
+    <button class="mi" data-act="report">Make a selection report (PDF)</button>
+    <button class="mi" data-act="export">Save a backup file</button>
+    <button class="mi" data-act="import">Open a backup file…</button>
+    ${!IS_ARTIFACT ? `<hr><div class="cap">Appearance</div><div style="padding:4px 8px 8px"><div class="seg">${["system","dark","light"].map(t => `<button data-act="theme" data-v="${t}" aria-pressed="${theme === t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div></div>
+    <hr><div class="cap">Find pieces with Claude</div><form data-form="key" style="display:grid;gap:8px"><input id="apikey" type="password" value="${esc(key)}" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off" aria-label="Anthropic API key"><div class="row"><button class="btn sm gold">Save key</button>${key ? `<button class="btn sm quiet" type="button" data-act="clearkey">Remove</button>` : ""}</div><span class="hint" style="padding:0 4px">Optional. Stored only in this browser and sent only to Anthropic when you scan a page. A page costs about a cent or two.</span></form>` : ""}
+    <hr><span class="hint" style="padding:4px 12px 8px">${S.mode === "idb" ? "Projects save in this browser on this device. Use backup files to move a project to another device." : S.mode === "cloud" ? "Projects save with this page and sync wherever you open it." : "This view isn't saving projects."}</span>`, $("#setbtn"), "right-below");
+}
+function openRoomPicker(anchor) {
+  const rooms = [...new Set(S.pins.map(x => x.room).filter(Boolean).concat(S.room ? [S.room] : []))];
+  showPop(`<div class="cap">New tags go in</div>
+    <button class="mi" data-act="setroom" data-v="" aria-current="${!S.room}">Any room</button>
+    ${rooms.map(r => `<button class="mi" data-act="setroom" data-v="${esc(r)}" aria-current="${S.room === r}">${esc(r)}</button>`).join("")}
+    <hr><form data-form="room"><input id="nr" placeholder="Add a room, e.g. Primary bedroom" autofocus aria-label="New room"><button class="btn sm gold">Add</button></form>`, anchor, "above");
+}
+function openList(anchor) {
+  $("#layer2").innerHTML = `<div class="scrim" data-act="closelist"></div><div class="sheet" role="dialog" aria-label="Tagged pieces"><div class="sh"><span class="cap">Tagged pieces</span><span class="sp"></span><button class="btn sm" data-act="closelist">Close</button></div><div style="overflow:auto">${pinListHTML()}</div></div>`;
+}
+
+/* ================= picker ================= */
+function openPicker(slot) {
+  const p = pinById(S.sheetPin); if (!p) return;
+  S.picker = { slot, q: "" };
+  const m = document.createElement("div"); m.className = "modal"; m.id = "picker"; m.setAttribute("role", "dialog");
+  m.innerHTML = `<div class="mh"><span class="tagid">${tagOf(p.n)}</span><h2>${slot === "first" ? "First pick" : "Backup"}${p.item ? ` · <em>${esc(p.item.toLowerCase())}</em>` : ""}</h2><button class="btn sm" data-act="closepicker">Close</button></div>
+    <div class="mb"><input class="search" id="pk-q" placeholder="Search name, vendor or category" aria-label="Search library"><div id="pk-grid" style="margin-top:18px"></div></div>`;
+  document.body.append(m); refreshPicker();
+}
+function refreshPicker() {
+  const g = $("#pk-grid"); if (!g || !S.picker) return; const p = pinById(S.sheetPin); if (!p) return;
+  const q = S.picker.q.toLowerCase(), item = (p.item || "").toLowerCase();
+  const list = S.options.filter(o => !q || [o.name, o.vendor, o.category].join(" ").toLowerCase().includes(q));
+  const match = o => item && ((o.category || "").toLowerCase() === item || (o.name || "").toLowerCase().includes(item) || (o.category && item.includes(o.category.toLowerCase())));
+  const sug = list.filter(match), rest = list.filter(o => !match(o)), cur = p[S.picker.slot];
+  const grid = arr => `<div class="grid">${arr.map(o => optCard(o, "choose", `aria-current="${o.id === cur}"`)).join("")}</div>`;
+  g.innerHTML = !S.options.length ? `<div class="empty"><h2>The library is empty</h2><p>Upload the vendor PDF in Library and cut out each piece first.</p><button class="btn gold" data-act="golibrary">Go to Library</button></div>`
+    : (sug.length ? `<div class="cap" style="margin-bottom:12px">Matches ${esc(p.item.toLowerCase())}</div>${grid(sug)}${rest.length ? `<div class="cap" style="margin:28px 0 12px">Everything else</div>` : ""}` : "") + (rest.length ? grid(rest) : sug.length ? "" : `<p class="hint">Nothing matches.</p>`);
+}
+function closePicker() { S.picker = null; $("#picker")?.remove(); }
+
+/* ================= option editor ================= */
+function openOptEditor(id) {
+  const o = optById(id); if (!o) return;
+  const m = document.createElement("div"); m.className = "modal"; m.id = "opted"; m.setAttribute("role", "dialog"); m.dataset.id = id;
+  m.innerHTML = `<div class="mh"><h2>${esc(o.name || "Piece")}</h2><button class="btn sm" data-act="closeopted">Done</button></div>
+    <div class="mb"><div style="display:grid;gap:16px;max-width:620px;margin:0 auto">
+      <div style="background:#F7F4EE;border-radius:14px;display:grid;place-items:center;max-height:360px;overflow:hidden;padding:12px"><img src="${esc(imgURL(o.img))}" alt="" style="max-height:336px;object-fit:contain"></div>
+      <label class="fld"><span class="cap">Name</span><input id="of-name" data-of="name" value="${esc(o.name)}"></label>
+      <div class="two" style="grid-template-columns:minmax(0,1fr) 140px"><label class="fld"><span class="cap">Category</span><input id="of-cat" data-of="category" list="dl-cats2" value="${esc(o.category)}"></label>
+      <label class="fld"><span class="cap">Price</span><input id="of-price" data-of="price" value="${esc(o.price)}" placeholder="$0"></label></div>
+      <label class="fld"><span class="cap">Vendor</span><input id="of-vendor" data-of="vendor" value="${esc(o.vendor)}"></label>
+      <label class="fld"><span class="cap">Link or SKU</span><input id="of-link" data-of="link" value="${esc(o.link)}"></label>
+      <p class="hint" style="margin:0">Used on: ${S.pins.filter(p => p.first === id || p.backup === id).map(p => `${tagOf(p.n)} ${p.first === id ? "(first)" : "(backup)"}`).join(", ") || "nothing yet"}</p>
+      <div id="optdel"><button class="btn sm danger" data-act="askdelopt" data-id="${esc(id)}">Remove from library</button></div>
+    </div></div><datalist id="dl-cats2">${CATS.map(c => `<option value="${c}">`).join("")}</datalist>`;
+  document.body.append(m);
+}
+
+/* ================= PDF + images ================= */
+const pdfCache = {};
+const openPdfData = buf => pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
+function loadPDF(ref) {
+  return pdfCache[ref] ||= fetch(imgURL(ref)).then(r => { if (!r.ok) throw new Error("couldn't open the PDF (" + r.status + ")"); return r.arrayBuffer(); }).then(openPdfData).catch(e => { delete pdfCache[ref]; throw e; });
+}
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("couldn't load the image")); i.src = src; }); }
+async function renderSourcePage(src, page, maxW) {
+  const c = document.createElement("canvas"), ctx = c.getContext("2d");
+  if (src.kind === "pdf") {
+    const pdf = await loadPDF(src.file), pg = await pdf.getPage(page), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(maxW / v1.width, 4) });
+    c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+  } else {
+    const im = await loadImg(imgURL(src.file)), s = Math.min(1, maxW / im.naturalWidth);
+    c.width = Math.round(im.naturalWidth * s); c.height = Math.round(im.naturalHeight * s); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(im, 0, 0, c.width, c.height);
+  }
+  return c;
+}
+const thumbCache = {};
+function drawThumbs() {
+  document.querySelectorAll("canvas[data-thumb]").forEach(async cv => {
+    const src = S.sources.find(s => s.id === cv.dataset.thumb), page = +cv.dataset.page; if (!src) return;
+    try { const c = thumbCache[src.id + ":" + page] ||= await renderSourcePage(src, page, 240); cv.width = c.width; cv.height = c.height; cv.getContext("2d").drawImage(c, 0, 0); } catch (e) {}
+  });
+}
+const toBlob = (c, type = "image/jpeg", q = .88) => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("couldn't encode the image")), type, q));
+function scaleCanvas(c, maxSide) {
+  const s = Math.min(1, maxSide / Math.max(c.width, c.height)); if (s === 1) return c;
+  const o = document.createElement("canvas"); o.width = Math.round(c.width * s); o.height = Math.round(c.height * s); o.getContext("2d").drawImage(c, 0, 0, o.width, o.height); return o;
+}
+
+/* ================= uploads ================= */
+async function uploadSources(files) {
+  for (const f of files) {
+    const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!isPdf && !f.type.startsWith("image/")) { toast(`${f.name} isn't a PDF or an image.`); continue; }
+    if (S.mode === "cloud" && f.size > 20 * 1024 * 1024) { toast(`${f.name} is over 20 MB. Split it or export at a lower resolution.`, 4200); continue; }
+    toast(`Adding ${f.name}…`, 6000);
+    try {
+      const pages = isPdf ? (await openPdfData(await f.arrayBuffer())).numPages : 1;
+      const ref = await putBlob(f);
+      await dbFor(S.pid).doc(`projects/${S.pid}/sources/${uid()}`).set({ name: f.name, kind: isPdf ? "pdf" : "image", file: ref, pages, createdAt: Date.now() });
+      toast(`${f.name} added · ${pages} page${pages > 1 ? "s" : ""}`);
+    } catch (e) { toast(`Couldn't add ${f.name}: ${errMsg(e)}`, 4200); }
+  }
+}
+async function uploadPlan(f) {
+  const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+  try {
+    let canvas;
+    if (isPdf) {
+      const pdf = await openPdfData(await f.arrayBuffer()); let page = 1;
+      if (pdf.numPages > 1) { page = await choosePage(pdf, f.name); if (!page) return; }
+      toast("Rendering the plan…", 8000);
+      const pg = await pdf.getPage(page), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(3200 / v1.width, 6) });
+      canvas = document.createElement("canvas"); canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
+      const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+    } else {
+      const url = URL.createObjectURL(f), im = await loadImg(url);
+      canvas = document.createElement("canvas"); canvas.width = im.naturalWidth; canvas.height = im.naturalHeight;
+      const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(im, 0, 0);
+      URL.revokeObjectURL(url); canvas = scaleCanvas(canvas, 3600);
+    }
+    const old = proj().plan?.img;
+    const ref = await putBlob(await toBlob(canvas, "image/jpeg", .92));
+    await dbFor(S.pid).doc(`projects/${S.pid}`).update({ plan: { img: ref, w: canvas.width, h: canvas.height } });
+    if (old) delBlob(old);
+    S.view = null; S.tagging = true; render();
+    toast("Plan added. Tap each piece to tag it.", 3200);
+  } catch (e) { toast("Couldn't add the plan: " + errMsg(e), 4200); }
+}
+function choosePage(pdf, name) {
+  return new Promise(resolve => {
+    const m = document.createElement("div"); m.className = "modal"; m.setAttribute("role", "dialog");
+    m.innerHTML = `<div class="mh"><h2>Which page is the furniture plan?</h2><button class="btn sm" data-x>Cancel</button></div><div class="mb"><p class="hint" style="margin-top:0">${esc(name)} has ${pdf.numPages} pages.</p><div class="pages" style="flex-wrap:wrap"></div></div>`;
+    document.body.append(m);
+    const box = m.querySelector(".pages"), done = v => { m.remove(); resolve(v); };
+    m.querySelector("[data-x]").onclick = () => done(0);
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const b = document.createElement("button"); b.className = "pg"; b.style.width = "150px";
+      const cv = document.createElement("canvas"); cv.style.height = "190px"; b.append(cv); const s = document.createElement("span"); s.textContent = i; b.append(s);
+      b.onclick = () => done(i); box.append(b);
+      pdf.getPage(i).then(pg => { const vp = pg.getViewport({ scale: 300 / pg.getViewport({ scale: 1 }).width }); cv.width = vp.width; cv.height = vp.height; pg.render({ canvasContext: cv.getContext("2d"), viewport: vp }); });
+    }
+  });
+}
+
+/* ================= cropper ================= */
+let C = null;
+const aiAvailable = () => IS_ARTIFACT ? S.aiOK : true;
+async function openCropper(sourceId, page) {
+  const src = S.sources.find(s => s.id === sourceId); if (!src) return;
+  C = { src, page, box: null, props: [], full: null };
+  const m = document.createElement("div"); m.className = "modal"; m.id = "cropper"; m.setAttribute("role", "dialog");
+  m.innerHTML = `<div class="mh"><h2>${esc(src.name)}</h2>
+    <button class="btn sm" data-act="cpage" data-d="-1" ${page <= 1 ? "disabled" : ""} aria-label="Previous page">‹</button><span class="hint num">${page} / ${src.pages}</span>
+    <button class="btn sm" data-act="cpage" data-d="1" ${page >= src.pages ? "disabled" : ""} aria-label="Next page">›</button><button class="btn sm" data-act="closecrop">Close</button></div>
+    <div class="mb"><div class="crop">
+      <div><div class="stage" id="stage"><div class="empty" style="line-height:1.4;color:#544D44"><span class="spin"></span><p style="color:#544D44">Rendering the page…</p></div></div>
+      <p class="hint">Drag a box around one product. Green boxes are already in the library.</p></div>
+      <div class="cform">
+        ${aiAvailable() ? `<button class="btn" data-act="aifind" id="ai-btn">✦ Find pieces on this page</button><div class="props" id="props"></div><hr style="border:0;border-top:1px solid var(--line);width:100%;margin:2px 0">` : ""}
+        <span class="cap">New piece</span>
+        <label class="fld"><span class="cap">Name</span><input id="cf-name" placeholder="e.g. Pilar lounge chair"></label>
+        <label class="fld"><span class="cap">Category</span><input id="cf-cat" list="dl-cats3" placeholder="Lounge chair"></label>
+        <div class="two" style="grid-template-columns:minmax(0,1fr) 110px"><label class="fld"><span class="cap">Vendor</span><input id="cf-vendor"></label><label class="fld"><span class="cap">Price</span><input id="cf-price" placeholder="$0"></label></div>
+        <div class="row"><button class="btn gold" data-act="savecrop" id="cf-save" disabled>Save piece</button><button class="btn quiet" data-act="wholepage">Use whole page</button></div>
+      </div></div><datalist id="dl-cats3">${CATS.map(c => `<option value="${c}">`).join("")}</datalist></div>`;
+  $("#cropper")?.remove(); document.body.append(m);
+  try {
+    C.full = await renderSourcePage(src, page, 2200);
+    if (!C || C.src !== src || C.page !== page) return;
+    const st = $("#stage"); st.innerHTML = ""; st.append(scaleCanvas(C.full, 1500));
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 1000 1000"); svg.setAttribute("preserveAspectRatio", "none"); st.append(svg);
+    bindStage(st); drawBoxes();
+  } catch (e) { $("#stage").innerHTML = `<div class="empty"><p style="color:#544D44">Couldn't render this page: ${esc(errMsg(e))}</p></div>`; }
+}
+function drawBoxes() {
+  const svg = $("#stage svg"); if (!svg || !C) return;
+  const r = (b, st, fill = "none", dash = "") => `<rect x="${b[0] * 1000}" y="${b[1] * 1000}" width="${(b[2] - b[0]) * 1000}" height="${(b[3] - b[1]) * 1000}" fill="${fill}" stroke="${st}" stroke-width="2" vector-effect="non-scaling-stroke" ${dash ? `stroke-dasharray="${dash}"` : ""}/>`;
+  svg.innerHTML = S.options.filter(o => o.sourceId === C.src.id && o.page === C.page && o.box).map(o => r(o.box, "#5E7352", "rgba(94,115,82,.12)")).join("")
+    + C.props.filter(p => !p.done).map(p => r(p.box, "#A85A32", "none", "6 4")).join("")
+    + (C.box ? r(C.box, "#A85A32", "rgba(245,201,40,.18)") : "");
+  const save = $("#cf-save"); if (save) save.disabled = !C.box;
+}
+function bindStage(st) {
+  let start = null;
+  const pt = e => { const b = st.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), Math.min(1, Math.max(0, (e.clientY - b.top) / b.height))]; };
+  st.addEventListener("pointerdown", e => { start = pt(e); st.setPointerCapture(e.pointerId); C.box = null; C.activeProp = null; drawBoxes(); });
+  st.addEventListener("pointermove", e => { if (!start) return; const p = pt(e); C.box = [Math.min(start[0], p[0]), Math.min(start[1], p[1]), Math.max(start[0], p[0]), Math.max(start[1], p[1])]; drawBoxes(); });
+  const end = () => { if (!start) return; start = null; if (C.box && (C.box[2] - C.box[0] < .02 || C.box[3] - C.box[1] < .02)) C.box = null; drawBoxes(); if (C.box && matchMedia("(min-width:900px)").matches) $("#cf-name")?.focus({ preventScroll: true }); };
+  st.addEventListener("pointerup", end); st.addEventListener("pointercancel", end);
+}
+async function cropAndSave(box, meta) {
+  const f = C.full, x = Math.round(box[0] * f.width), y = Math.round(box[1] * f.height), w = Math.max(4, Math.round((box[2] - box[0]) * f.width)), h = Math.max(4, Math.round((box[3] - box[1]) * f.height));
+  const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(f, x, y, w, h, 0, 0, w, h);
+  const ref = await putBlob(await toBlob(scaleCanvas(c, 1000)));
+  await dbFor(S.pid).doc(`projects/${S.pid}/options/${uid()}`).set({ name: meta.name || "", category: meta.category || "", vendor: meta.vendor || "", price: meta.price || "", link: "", img: ref, sourceId: C.src.id, page: C.page, box, createdAt: Date.now() });
+}
+async function saveCurrentCrop() {
+  if (!C?.box) return; const btn = $("#cf-save"); btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Saving`;
+  const meta = { name: $("#cf-name").value.trim(), category: $("#cf-cat").value.trim(), vendor: $("#cf-vendor").value.trim(), price: $("#cf-price").value.trim() };
+  try {
+    await cropAndSave(C.box, meta);
+    if (C.activeProp) C.activeProp.done = true; C.activeProp = null; C.box = null;
+    ["#cf-name", "#cf-cat", "#cf-price"].forEach(s => $(s).value = "");
+    toast(`Saved ${meta.name || "piece"}`); renderProps();
+  } catch (e) { toast("Couldn't save: " + errMsg(e), 4200); }
+  btn.textContent = "Save piece"; drawBoxes();
+}
+function renderProps() {
+  const el = $("#props"); if (!el || !C) return; const open = C.props.filter(p => !p.done);
+  el.innerHTML = open.length ? open.map(p => `<button class="prop" data-act="useprop" data-i="${C.props.indexOf(p)}"><b>${esc(p.category || "Piece")}</b><span>${esc(p.name)}${p.price ? " · " + esc(p.price) : ""}</span></button>`).join("") + `<button class="btn gold sm" data-act="addallprops" style="justify-self:start">Add all ${open.length}</button>` : "";
+  drawBoxes();
+}
+const blobToB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+async function askClaudeForPieces(blob, prompt) {
+  if (IS_ARTIFACT) return S.sample.json(prompt, { images: [blob], modelTier: "default" });
+  const key = recall("pp.key");
+  if (!key) { const e = new Error("Add your Anthropic API key in Settings (the ⋯ button) to scan pages."); e.code = "no_key"; throw e; }
+  const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 4000, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: await blobToB64(blob) } }, { type: "text", text: prompt }] }] }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || ("request failed (" + r.status + ")"));
+  const text = (j.content || []).map(c => c.text || "").join(""), m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("Claude's answer wasn't readable. Try again.");
+  return JSON.parse(m[0]);
+}
+async function aiFind() {
+  const btn = $("#ai-btn"); if (!C?.full || !btn) return;
+  btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Looking at the page…`;
+  try {
+    const blob = await toBlob(scaleCanvas(C.full, 1500), "image/jpeg", .85);
+    const prompt = `The image is one page of an interior design furniture presentation or vendor spec sheet. Find every individual furniture, lighting, rug or decor product pictured (a photo, rendering or line drawing of a single product). Ignore floorplans, logos, room mood images, and text-only blocks.
+For each product return:
+- name: the product name as printed, or a short plain description if none is printed
+- category: one of ${CATS.join(", ")}
+- vendor: the manufacturer or vendor if printed, else ""
+- price: the price as printed, else ""
+- box: [left, top, right, bottom] as fractions from 0 to 1 of the image width and height, drawn tightly around the product picture only, not its caption.
+Respond with JSON only: {"items":[{"name":"","category":"","vendor":"","price":"","box":[0,0,1,1]}]}. If there are no products, respond {"items":[]}.`;
+    const res = await askClaudeForPieces(blob, prompt);
+    const items = (res && Array.isArray(res.items) ? res.items : []).filter(i => Array.isArray(i.box) && i.box.length === 4 && i.box.every(n => typeof n === "number"))
+      .map(i => { const b = i.box.map(n => Math.min(1, Math.max(0, n))); return { name: String(i.name || ""), category: String(i.category || ""), vendor: String(i.vendor || ""), price: String(i.price || ""), box: [Math.min(b[0], b[2]), Math.min(b[1], b[3]), Math.max(b[0], b[2]), Math.max(b[1], b[3])] }; })
+      .filter(i => i.box[2] - i.box[0] > .02 && i.box[3] - i.box[1] > .02);
+    if (!C) return; C.props = items; renderProps();
+    toast(items.length ? `Found ${items.length} piece${items.length > 1 ? "s" : ""}. Check each box before saving.` : "No products found on this page. Draw boxes by hand.", 3400);
+  } catch (e) {
+    toast(e.code === "rate_limited" ? "Too many requests right now. Try again in a minute." : e.code === "not_granted" ? "Claude access wasn't allowed for this page." : e.code === "no_key" ? e.message : "Couldn't scan the page: " + errMsg(e), 5000);
+  }
+  if ($("#ai-btn")) { $("#ai-btn").disabled = false; $("#ai-btn").textContent = "✦ Find pieces on this page"; }
+}
+async function addAllProps() {
+  let n = 0;
+  for (const p of C.props.filter(p => !p.done)) { try { await cropAndSave(p.box, p); p.done = true; n++; renderProps(); } catch (e) { toast("Stopped: " + errMsg(e), 4200); break; } }
+  toast(`Added ${n} piece${n === 1 ? "" : "s"} to the library`);
+}
+
+/* ================= files out: CSV + backups ================= */
+async function saveFile(filename, data, type) {
+  if (IS_ARTIFACT) {
+    if (!S.downloads) { toast("Saving files isn't available in this view."); return; }
+    try { await S.downloads.save({ filename, data }); } catch (e) { if (e.code !== "declined") toast("Couldn't save the file: " + errMsg(e)); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([data], { type })), a = document.createElement("a");
+  a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+const slug = s => (s || "project").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-");
+function downloadCSV() {
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = [["Tag","Room","Piece","Qty","First pick","First vendor","First price","First link","Backup","Backup vendor","Backup price","Backup link","Notes"]];
+  S.pins.forEach(p => { const a = optById(p.first) || {}, b = optById(p.backup) || {}; rows.push([tagOf(p.n), p.room, p.item, p.qty || 1, a.name, a.vendor, a.price, a.link, b.name, b.vendor, b.price, b.link, p.notes]); });
+  saveFile(slug(proj().name) + "-selections.csv", rows.map(r => r.map(q).join(",")).join("\r\n"), "text/csv");
+}
+async function exportProject() {
+  closePop(); const p = proj(); toast("Packing the backup…", 8000);
+  try {
+    const refs = new Set([p.plan?.img, ...S.options.map(o => o.img), ...S.sources.map(s => s.file)].filter(r => r && !r.startsWith("data:")));
+    const files = {};
+    for (const r of refs) { const b = await (await fetch(imgURL(r))).blob(); files[r] = { type: b.type, data: await blobToB64(b) }; }
+    const strip = ({ id, ...rest }) => ({ id, ...rest });
+    const out = { format: "plan-picker", version: 1, savedAt: new Date().toISOString(), project: { name: p.name, plan: p.plan || null }, pins: S.pins.map(strip), options: S.options.map(strip), sources: S.sources.map(strip), files };
+    await saveFile(slug(p.name) + ".planpicker.json", JSON.stringify(out), "application/json");
+  } catch (e) { toast("Couldn't make the backup: " + errMsg(e), 4200); }
+}
+async function importProject(f) {
+  try {
+    const j = JSON.parse(await f.text()); if (j.format !== "plan-picker") throw new Error("that isn't a Plan Picker backup");
+    toast("Opening the backup…", 10000);
+    const map = {};
+    for (const [r, v] of Object.entries(j.files || {})) { const bin = atob(v.data), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); map[r] = await putBlobFor(new Blob([u], { type: v.type })); }
+    const m = r => r && map[r] ? map[r] : r, id = uid(), db = S.db, base = `projects/${id}`;
+    await db.doc(base).set({ name: j.project.name + " (copy)", plan: j.project.plan ? { ...j.project.plan, img: m(j.project.plan.img) } : null, createdAt: Date.now() });
+    for (const s of j.sources || []) { const { id: sid, ...d } = s; await db.doc(`${base}/sources/${sid}`).set({ ...d, file: m(d.file) }); }
+    for (const o of j.options || []) { const { id: oid, ...d } = o; await db.doc(`${base}/options/${oid}`).set({ ...d, img: m(d.img) }); }
+    for (const t of j.pins || []) { const { id: tid, ...d } = t; await db.doc(`${base}/pins/${tid}`).set(d); }
+    S.autoExample = false; S.pid = null; openProject(id); toast("Backup opened as a new project");
+  } catch (e) { toast("Couldn't open the backup: " + errMsg(e), 4200); }
+}
+async function putBlobFor(blob) {
+  if (S.mode === "cloud") { if (!S.assets) throw new Error("only editors of this page can upload files"); return (await S.assets.upload(blob)).id; }
+  if (S.mode === "idb") return S.idb.putBlob(blob);
+  const ref = "local:" + uid(); blobs[ref] = URL.createObjectURL(blob); return ref;
+}
+
+/* ================= selection report (PDF) ================= */
+function openReportDialog() {
+  if (!S.pins.length) { toast("Tag a few pieces on the plan first."); return; }
+  const n = S.pins.length, f = S.pins.filter(p => p.first).length, b = S.pins.filter(p => p.backup).length;
+  const m = document.createElement("div"); m.className = "modal"; m.id = "reportdlg"; m.setAttribute("role", "dialog");
+  const ck = (id, label, on, sub) => `<label style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)"><input type="checkbox" id="${id}" ${on ? "checked" : ""} style="margin-top:3px;accent-color:var(--gold)"><span><span>${label}</span>${sub ? `<br><span class="hint">${sub}</span>` : ""}</span></label>`;
+  m.innerHTML = `<div class="mh"><h2>Selection report</h2><button class="btn sm" data-act="closereport">Close</button></div>
+    <div class="mb"><div style="max-width:560px;margin:0 auto;display:grid;gap:6px">
+      <p style="margin:0 0 6px;color:var(--body)">${f === n ? `All ${n} pieces have a first pick.` : `${f} of ${n} pieces have a first pick. The report will be marked as a working draft and list the ${n - f} open piece${n - f === 1 ? "" : "s"}.`} ${b} have a backup.</p>
+      ${ck("rp-plan", "Furniture plan with tags", true, "The floorplan with every tag marked by status")}
+      ${ck("rp-backup", "Backups", true, "Show the backup beside each first pick")}
+      ${ck("rp-price", "Prices and totals", true, "Uncheck for a version to send without pricing")}
+      ${ck("rp-open", "Open pieces", true, "Include tags that don't have a first pick yet")}
+      ${ck("rp-notes", "Notes", true, "")}
+      <label class="fld" style="margin-top:12px"><span class="cap">Prepared for (optional)</span><input id="rp-for" placeholder="Client name" value="${esc(recall("pp.for." + S.pid) || "")}"></label>
+      <div class="row" style="margin-top:16px"><button class="btn gold" data-act="makereport" id="rp-go">Make PDF</button><span class="hint">Letter size, landscape</span></div>
+    </div></div>`;
+  document.body.append(m);
+}
+async function fitImage(src, bw, bh, bg = "#F7F4EE", pad = .06) {
+  const c = document.createElement("canvas"); c.width = Math.round(bw); c.height = Math.round(bh);
+  const x = c.getContext("2d"); x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height);
+  if (src) { try { const im = await loadImg(src), iw = im.naturalWidth || 400, ih = im.naturalHeight || 300, s = Math.min(c.width * (1 - 2 * pad) / iw, c.height * (1 - 2 * pad) / ih); x.drawImage(im, (c.width - iw * s) / 2, (c.height - ih * s) / 2, iw * s, ih * s); } catch (e) {} }
+  return c.toDataURL("image/jpeg", .86);
+}
+async function planWithTags() {
+  const p = proj(), im = await loadImg(imgURL(p.plan.img)), sc = Math.min(1, 2400 / Math.max(im.naturalWidth, im.naturalHeight));
+  const c = document.createElement("canvas"); c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height);
+  const h = Math.max(18, c.width * .02), fs = h * .5;
+  x.font = `600 ${fs}px Helvetica, Arial, sans-serif`; x.textBaseline = "middle";
+  for (const t of S.pins) {
+    const label = tagOf(t.n), tw = x.measureText(label).width, w = tw + h * 1.25, cx = t.x * c.width, cy = t.y * c.height, st = pstate(t);
+    x.beginPath(); x.roundRect ? x.roundRect(cx - w / 2, cy - h / 2, w, h, h / 2) : x.rect(cx - w / 2, cy - h / 2, w, h);
+    x.fillStyle = st ? "#F5C928" : "#0B0A09"; x.fill(); x.lineWidth = Math.max(1, h * .06); x.strokeStyle = st ? "#0B0A09" : "#EFE8DA"; x.stroke();
+    const dx = cx - w / 2 + h * .42; x.beginPath(); x.arc(dx, cy, h * .13, 0, 7);
+    x.fillStyle = st === 2 ? "#5E7352" : st ? "#0B0A09" : "#0B0A09"; x.fill(); if (!st) { x.strokeStyle = "#EFE8DA"; x.lineWidth = h * .05; x.stroke(); }
+    x.fillStyle = st ? "#0B0A09" : "#EFE8DA"; x.fillText(label, dx + h * .3, cy + h * .02);
+  }
+  return { data: c.toDataURL("image/jpeg", .9), w: c.width, h: c.height };
+}
+async function makeReport() {
+  const go = $("#rp-go"); if (!window.jspdf) { toast("The PDF tool didn't load. Check your connection and try again."); return; }
+  const o = { plan: $("#rp-plan").checked && !!proj().plan, backup: $("#rp-backup").checked, price: $("#rp-price").checked, open: $("#rp-open").checked, notes: $("#rp-notes").checked, for: $("#rp-for").value.trim() };
+  store("pp.for." + S.pid, o.for || null);
+  go.disabled = true; go.innerHTML = `<span class="spin"></span> Building`;
+  try {
+    const blob = await buildReport(o);
+    await saveFile(slug(proj().name) + "-selections.pdf", blob, "application/pdf");
+    $("#reportdlg")?.remove();
+  } catch (e) { toast("Couldn't make the report: " + errMsg(e), 4500); }
+  if ($("#rp-go")) { $("#rp-go").disabled = false; $("#rp-go").textContent = "Make PDF"; }
+}
+async function buildReport(o) {
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+  const W = 792, H = 612, M = 44, p = proj();
+  const INK = [42, 38, 32], BODY = [84, 77, 68], MUTED = [123, 114, 102], RULE = [211, 203, 190], CLAY = [168, 90, 50], SAGE = [94, 115, 82], PAPER = [247, 244, 238];
+  const col = c => doc.setTextColor(...c);
+  const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const pins = S.pins.filter(t => o.open || t.first), all = S.pins;
+  const nF = all.filter(t => t.first).length, nB = all.filter(t => t.backup).length, nOpen = all.length - nF, draft = nOpen > 0;
+  const ext = (oid, q) => { const op = optById(oid); return op ? priceNum(op.price) * (q || 1) : 0; };
+  const totF = all.reduce((a, t) => a + ext(t.first, t.qty), 0), totB = all.reduce((a, t) => a + (t.backup ? ext(t.backup, t.qty) : ext(t.first, t.qty)), 0);
+  let page = 0;
+  const frame = title => {
+    if (page++) doc.addPage();
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); col(MUTED);
+    doc.text(("PLAN PICKER  ·  " + p.name).toUpperCase(), M, 28, { charSpace: 1 });
+    doc.text(`${draft ? "WORKING DRAFT  ·  " : ""}${date.toUpperCase()}  ·  ${page}`, W - M, 28, { align: "right", charSpace: 1 });
+    doc.setDrawColor(...RULE); doc.setLineWidth(.5); doc.line(M, 36, W - M, 36);
+    if (title) { doc.setFont("times", "italic"); doc.setFontSize(24); col(INK); doc.text(title, M, 72); }
+  };
+  // cover
+  frame("");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); col(CLAY); doc.text("FURNITURE SELECTIONS", M, 150, { charSpace: 1.6 });
+  doc.setFont("times", "normal"); doc.setFontSize(46); col(INK);
+  const nameLines = doc.splitTextToSize(p.name, W - 2 * M); doc.text(nameLines, M, 200);
+  let y = 200 + nameLines.length * 46;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11); col(BODY);
+  doc.text([o.for ? "Prepared for " + o.for : "", date].filter(Boolean), M, y + 6); y += o.for ? 50 : 34;
+  if (draft) { doc.setFillColor(...CLAY); doc.roundedRect(M, y, 196, 22, 11, 11, "F"); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text(`WORKING DRAFT  ·  ${nOpen} OPEN`, M + 98, y + 14.5, { align: "center", charSpace: 1 }); y += 40; }
+  const stats = [[String(all.length), "pieces tagged"], [`${nF} / ${all.length}`, "with a first pick"], [`${nB} / ${all.length}`, "with a backup"]];
+  if (o.price) stats.push([money(totF), "first picks, list"], [money(totB), "if every backup is used"]);
+  const sw = (W - 2 * M) / stats.length, sy = H - 150;
+  doc.setDrawColor(...RULE); doc.line(M, sy - 30, W - M, sy - 30); doc.line(M, sy + 34, W - M, sy + 34);
+  stats.forEach(([v, l], i) => { doc.setFont("times", "normal"); doc.setFontSize(26); col(INK); doc.text(v, M + i * sw, sy + 4); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); col(MUTED); doc.text(l, M + i * sw, sy + 20); });
+  const rooms = {}; pins.forEach(t => (rooms[t.room || "Unassigned"] ||= []).push(t));
+  doc.setFontSize(9); col(MUTED); doc.text("Rooms: " + Object.keys(rooms).join("  ·  "), M, H - 70, { maxWidth: W - 2 * M });
+  // plan
+  if (o.plan) {
+    frame("Furniture plan");
+    const pl = await planWithTags(), aw = W - 2 * M, ah = H - 150, s = Math.min(aw / pl.w, ah / pl.h), w = pl.w * s, h = pl.h * s;
+    doc.addImage(pl.data, "JPEG", M + (aw - w) / 2, 90, w, h);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+    const leg = [["#0B0A09", "Open"], ["#F5C928", "First pick chosen"], ["#5E7352", "First pick and backup"]];
+    let lx = M; leg.forEach(([c, l]) => { doc.setFillColor(c); doc.circle(lx + 4, H - 40, 4, "F"); col(BODY); doc.text(l, lx + 13, H - 37); lx += doc.getTextWidth(l) + 40; });
+  }
+  // room pages
+  const thumbs = {}; const thumb = async oid => thumbs[oid] ||= await fitImage(imgURL((optById(oid) || {}).img), 480, 360);
+  const ROW = 118, top = 96, bottom = H - 40;
+  const cTag = M, cPiece = M + 50, cFirst = M + 210, cBack = M + 210 + (W - 2 * M - 210) / 2, cw = (W - 2 * M - 210) / (o.backup ? 2 : 1) - 14;
+  const choice = async (oid, x, yy, label, color) => {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); col(color); doc.text(label.toUpperCase(), x, yy + 2, { charSpace: 1.2 });
+    const op = optById(oid), iw = 112, ih = 84;
+    if (!op) { doc.setDrawColor(...RULE); doc.setLineDashPattern([3, 3], 0); doc.rect(x, yy + 10, iw, ih); doc.setLineDashPattern([], 0); doc.setFontSize(9.5); col(MUTED); doc.text("Not chosen yet", x + iw + 12, yy + 26); return; }
+    doc.addImage(await thumb(oid), "JPEG", x, yy + 10, iw, ih);
+    const tx = x + iw + 12, tw = cw - iw - 12;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); col(INK);
+    const nl = doc.splitTextToSize(op.name || "Unnamed piece", tw).slice(0, 3); doc.text(nl, tx, yy + 22);
+    let ty = yy + 22 + nl.length * 12 + 2; doc.setFontSize(8.5); col(BODY);
+    if (op.vendor) { doc.text(doc.splitTextToSize(op.vendor, tw)[0], tx, ty); ty += 11; }
+    if (o.price && op.price) { doc.text(op.price + ((oid && pinQty > 1) ? `  × ${pinQty}` : ""), tx, ty); ty += 11; }
+    if (op.link) { col(MUTED); doc.setFontSize(7.5); doc.text(doc.splitTextToSize(op.link, tw)[0], tx, ty); }
+  };
+  let pinQty = 1;
+  for (const [room, list] of Object.entries(rooms)) {
+    frame(room); let yy = top;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); col(MUTED);
+    const rf = list.filter(t => t.first).length; doc.text(`${list.length} piece${list.length === 1 ? "" : "s"}  ·  ${rf} chosen`, W - M, 72, { align: "right" });
+    for (const t of list) {
+      if (yy + ROW > bottom) { frame(room + " (continued)"); yy = top; }
+      doc.setDrawColor(...RULE); doc.setLineWidth(.5); doc.line(M, yy - 6, W - M, yy - 6);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); col(t.first ? INK : CLAY); doc.text(tagOf(t.n), cTag, yy + 12);
+      doc.setFont("times", "normal"); doc.setFontSize(15); col(INK);
+      const il = doc.splitTextToSize(t.item || "Untitled piece", 150).slice(0, 2); doc.text(il, cPiece, yy + 13);
+      let py = yy + 13 + il.length * 15; doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); col(BODY);
+      if ((t.qty || 1) > 1) { doc.text("Qty " + t.qty, cPiece, py); py += 12; }
+      if (!t.first) { col(CLAY); doc.text("Open", cPiece, py); py += 12; col(BODY); }
+      if (o.notes && t.notes) { col(MUTED); doc.text(doc.splitTextToSize(t.notes, 150).slice(0, 4), cPiece, py); }
+      pinQty = t.qty || 1;
+      await choice(t.first, cFirst, yy, "First pick", CLAY);
+      if (o.backup) await choice(t.backup, cBack, yy, "Backup", SAGE);
+      yy += ROW;
+    }
+  }
+  // summary table
+  frame("Summary");
+  const cols = o.price
+    ? [["Tag", 40], ["Room", 92], ["Piece", 110], ["Qty", 30], ["First pick", 150], ["Vendor", 90], ["Price", 60], ["Ext.", 62], ...(o.backup ? [["Backup", 150], ["Price", 60]] : [])]
+    : [["Tag", 40], ["Room", 100], ["Piece", 130], ["Qty", 30], ["First pick", 190], ["Vendor", 110], ...(o.backup ? [["Backup", 190]] : [])];
+  const scale = (W - 2 * M) / cols.reduce((a, c) => a + c[1], 0); cols.forEach(c => c[1] *= scale);
+  const right = new Set(["Qty", "Price", "Ext."]);
+  let ty = 100;
+  const head = () => { doc.setFont("helvetica", "normal"); doc.setFontSize(7); col(MUTED); let x = M; cols.forEach(([h, w]) => { doc.text(h.toUpperCase(), right.has(h) ? x + w - 6 : x, ty, { align: right.has(h) ? "right" : "left", charSpace: 1 }); x += w; }); doc.setDrawColor(...INK); doc.setLineWidth(.6); doc.line(M, ty + 6, W - M, ty + 6); ty += 20; };
+  head();
+  doc.setFontSize(8.5);
+  for (const t of pins) {
+    if (ty > H - 70) { frame("Summary (continued)"); ty = 100; head(); doc.setFontSize(8.5); }
+    const a = optById(t.first) || {}, b = optById(t.backup) || {}, q = t.qty || 1;
+    const cells = o.price
+      ? [tagOf(t.n), t.room || "", t.item || "", String(q), a.name || "Open", a.vendor || "", a.price || "", t.first ? money(priceNum(a.price) * q) : "", ...(o.backup ? [b.name || "", b.price || ""] : [])]
+      : [tagOf(t.n), t.room || "", t.item || "", String(q), a.name || "Open", a.vendor || "", ...(o.backup ? [b.name || ""] : [])];
+    let x = M; cells.forEach((v, i) => { const [h, w] = cols[i]; doc.setFont("helvetica", i === 0 ? "bold" : "normal"); col(!t.first && h === "First pick" ? CLAY : i === 0 ? INK : BODY);
+      const s1 = doc.splitTextToSize(String(v), w - 8)[0] || ""; doc.text(s1, right.has(h) ? x + w - 6 : x, ty, { align: right.has(h) ? "right" : "left" }); x += w; });
+    doc.setDrawColor(...RULE); doc.setLineWidth(.4); doc.line(M, ty + 6, W - M, ty + 6); ty += 18;
+  }
+  if (o.price) {
+    ty += 8; if (ty > H - 70) { frame("Summary (continued)"); ty = 110; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); col(BODY);
+    doc.text("First picks, list price", W - M - 150, ty, { align: "right" }); doc.setFont("times", "normal"); doc.setFontSize(14); col(INK); doc.text(money(totF), W - M, ty, { align: "right" });
+    ty += 18; doc.setFont("helvetica", "normal"); doc.setFontSize(9); col(BODY);
+    doc.text("If every backup is used", W - M - 150, ty, { align: "right" }); doc.setFont("times", "normal"); doc.setFontSize(14); col(INK); doc.text(money(totB), W - M, ty, { align: "right" });
+    ty += 16; doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); col(MUTED);
+    doc.text(`List prices as entered, before tax, freight and receiving.${draft ? ` ${nOpen} open piece${nOpen === 1 ? " is" : "s are"} not included.` : ""}`, W - M, ty, { align: "right" });
+  }
+  return doc.output("blob");
+}
+
+/* ================= deletes ================= */
+async function deleteProject() {
+  const pid = S.pid, db = dbFor(pid), p = proj();
+  try {
+    const refs = [p.plan?.img, ...S.options.map(o => o.img), ...S.sources.map(s => s.file)];
+    for (const c of ["pins", "options", "sources"]) { const snap = await db.collection(`projects/${pid}/${c}`).get(); for (const d of snap.docs) await db.doc(`projects/${pid}/${c}/${d.id}`).delete(); }
+    await db.doc(`projects/${pid}`).delete(); refs.forEach(delBlob);
+    store("pp.pid", null); closePop(); toast("Project deleted");
+  } catch (e) { toast("Couldn't delete: " + errMsg(e)); }
+}
+async function deleteOption(id) {
+  const db = dbFor(S.pid), o = optById(id);
+  try {
+    for (const p of S.pins) { const ch = {}; if (p.first === id) ch.first = ""; if (p.backup === id) ch.backup = ""; if (Object.keys(ch).length) await db.doc(`projects/${S.pid}/pins/${p.id}`).update(ch); }
+    await db.doc(`projects/${S.pid}/options/${id}`).delete(); if (o) delBlob(o.img);
+    $("#opted")?.remove(); toast("Removed from the library");
+  } catch (e) { toast("Couldn't remove: " + errMsg(e)); }
+}
+async function deleteSource(id) {
+  const s = S.sources.find(x => x.id === id);
+  try { await dbFor(S.pid).doc(`projects/${S.pid}/sources/${id}`).delete(); if (s) delBlob(s.file); toast("Source removed. Pieces cut from it stay in the library."); }
+  catch (e) { toast("Couldn't remove: " + errMsg(e)); }
+}
+function closeAll() { closePicker(); closePop(); $("#opted")?.remove(); $("#cropper")?.remove(); C = null; S.sheetPin = null; $("#layer2").innerHTML = ""; }
+
+/* ================= events ================= */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-act],[data-tab]"); if (!t) return;
+  if (t.dataset.tab) { if (S.tab === t.dataset.tab) return; S.tab = t.dataset.tab; S.tagging = false; S.tray = null; closeAll(); render(); return; }
+  const a = t.dataset.act, id = t.dataset.id;
+  switch (a) {
+    case "closepop": closePop(); break;
+    case "pickproj": closePop(); S.autoExample = false; openProject(id); break;
+    case "replaceplan": closePop(); $("#fPlan").click(); break;
+    case "askdelproj": $("#delzone").innerHTML = `<div class="confirm" style="padding:8px 12px">Delete “${esc(proj().name)}” with all its tags, pieces and files? <button class="btn sm gold" data-act="delproj">Delete</button><button class="btn sm quiet" data-act="closepop">Keep</button></div>`; break;
+    case "delproj": deleteProject(); break;
+    case "upplan": $("#fPlan").click(); break;
+    case "upsrc": $("#fSrc").click(); break;
+    case "tagmode": S.tagging = !S.tagging; if (!S.tagging) S.tray = null; $("#vp")?.classList.toggle("tagging", S.tagging); $("#coach") && ($("#coach").hidden = !S.tagging);
+      t.setAttribute("aria-pressed", S.tagging); t.innerHTML = `<span class="ring"></span>${S.tagging ? "Done" : "Tag pieces"}`; renderTray(); break;
+    case "zoomin": { const { w, h } = vpSize(); zoomAt(1.5, w / 2, h / 2); break; }
+    case "zoomout": { const { w, h } = vpSize(); zoomAt(1 / 1.5, w / 2, h / 2); break; }
+    case "fit": fitView(); break;
+    case "labels": S.labels = !S.labels; t.setAttribute("aria-pressed", S.labels); renderTags(); break;
+    case "paper": { const on = document.documentElement.classList.toggle("paper"); store("pp.paper", on ? "1" : null); t.setAttribute("aria-pressed", on); break; }
+    case "roompick": openRoomPicker(t); break;
+    case "setroom": S.room = t.dataset.v; store("pp.room", S.room || null); closePop(); $("#roomname").textContent = S.room || "Any"; break;
+    case "list": openList(t); break;
+    case "closelist": $("#layer2").innerHTML = ""; break;
+    case "focuspin": $("#layer2").innerHTML = ""; focusPin(id); break;
+    case "quickname": { const tid = S.tray, v = t.dataset.v; S.tray = null; renderTray(); await savePin(tid, { item: v }); break; }
+    case "undotag": { const tid = S.tray; S.tray = null; renderTray(); try { await pinDoc(tid).delete(); } catch (err) { toast("Couldn't undo: " + errMsg(err)); } break; }
+    case "opentray": { const tid = S.tray; S.tray = null; renderTray(); openSheet(tid); break; }
+    case "openpin": openSheet(id); break;
+    case "closesheet": closeSheet(); break;
+    case "askdelpin": $("#pindel").innerHTML = `<div class="confirm">Delete ${tagOf(pinById(S.sheetPin).n)}? <button class="btn sm gold" data-act="delpin">Delete</button><button class="btn sm quiet" data-act="keeppin">Keep</button></div>`; break;
+    case "keeppin": $("#pindel").innerHTML = `<button class="btn sm danger" data-act="askdelpin">Delete tag</button><span class="hint">Drag a tag on the plan to move it.</span>`; break;
+    case "delpin": { const pid = S.sheetPin, n = pinById(pid); closeSheet(); try { await pinDoc(pid).delete(); toast(`${tagOf(n.n)} deleted`, 4000, { label: "Undo", fn: () => { const { id: _, ...d } = n; pinDoc(pid).set(d); } }); } catch (err) { toast("Couldn't delete: " + errMsg(err)); } break; }
+    case "pick": openPicker(t.dataset.slot); break;
+    case "clearslot": savePin(S.sheetPin, { [t.dataset.slot]: "" }); break;
+    case "swap": { const p = pinById(S.sheetPin); savePin(p.id, { first: p.backup || "", backup: p.first || "" }); break; }
+    case "choose": { const p = pinById(S.sheetPin), slot = S.picker.slot, other = slot === "first" ? "backup" : "first", ch = { [slot]: id }; if (p[other] === id) ch[other] = p[slot] || ""; closePicker(); savePin(p.id, ch); break; }
+    case "closepicker": closePicker(); break;
+    case "golibrary": closeAll(); S.tab = "library"; render(); break;
+    case "editopt": openOptEditor(id); break;
+    case "closeopted": $("#opted")?.remove(); break;
+    case "askdelopt": $("#optdel").innerHTML = `<div class="confirm">Remove this piece? Tags using it go back to open. <button class="btn sm gold" data-act="delopt" data-id="${esc(id)}">Remove</button><button class="btn sm quiet" data-act="closeopted">Keep</button></div>`; break;
+    case "delopt": deleteOption(id); break;
+    case "askdelsrc": $("#dz-" + CSS.escape(id)).innerHTML = `<span class="confirm">Remove this PDF? <button class="btn sm gold" data-act="delsrc" data-id="${esc(id)}">Remove</button></span>`; break;
+    case "delsrc": deleteSource(id); break;
+    case "crop": openCropper(id, +t.dataset.page); break;
+    case "cpage": openCropper(C.src.id, C.page + (+t.dataset.d)); break;
+    case "closecrop": C = null; $("#cropper")?.remove(); break;
+    case "savecrop": saveCurrentCrop(); break;
+    case "wholepage": if (C?.full) { C.box = [0, 0, 1, 1]; drawBoxes(); } break;
+    case "aifind": aiFind(); break;
+    case "useprop": { const p = C.props[+t.dataset.i]; C.box = p.box.slice(); C.activeProp = p; $("#cf-name").value = p.name; $("#cf-cat").value = p.category; $("#cf-vendor").value = p.vendor; $("#cf-price").value = p.price; drawBoxes(); break; }
+    case "addallprops": addAllProps(); break;
+    case "csv": downloadCSV(); break;
+    case "report": closePop(); openReportDialog(); break;
+    case "closereport": $("#reportdlg")?.remove(); break;
+    case "makereport": makeReport(); break;
+    case "export": exportProject(); break;
+    case "import": closePop(); $("#fImport").click(); break;
+    case "theme": { const v = t.dataset.v; store("pp.theme", v === "system" ? null : v); applyTheme(); closePop(); break; }
+    case "clearkey": store("pp.key", null); closePop(); toast("Key removed"); break;
+  }
+});
+$("#projbtn").addEventListener("click", openProjectMenu);
+$("#setbtn").addEventListener("click", openSettings);
+document.addEventListener("submit", async e => {
+  const f = e.target.dataset.form; if (!f) return; e.preventDefault();
+  if (f === "newproj") {
+    const name = $("#np-name").value.trim(); if (!name) { $("#np-name").focus(); return; }
+    const id = uid();
+    try { await S.db.doc(`projects/${id}`).set({ name, plan: null, createdAt: Date.now() }); closePop(); S.tab = "plan"; S.autoExample = false; openProject(id); }
+    catch (err) { toast("Couldn't create the project: " + errMsg(err)); }
+  } else if (f === "rename") {
+    const name = $("#rn-name").value.trim(); if (!name) return;
+    try { await dbFor(S.pid).doc(`projects/${S.pid}`).update({ name }); closePop(); } catch (err) { toast("Couldn't rename: " + errMsg(err)); }
+  } else if (f === "room") {
+    const v = $("#nr").value.trim(); if (!v) return; S.room = v; store("pp.room", v); closePop(); $("#roomname").textContent = v;
+  } else if (f === "key") {
+    const v = $("#apikey").value.trim(); store("pp.key", v || null); closePop(); toast(v ? "Key saved in this browser" : "Key removed");
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.pf && S.sheetPin) { let v = t.value.trim(); if (t.dataset.pf === "qty") v = Math.max(1, parseInt(v) || 1); savePin(S.sheetPin, { [t.dataset.pf]: v }); }
+  if (t.dataset.of) { const id = $("#opted")?.dataset.id; if (id) dbFor(S.pid).doc(`projects/${S.pid}/options/${id}`).update({ [t.dataset.of]: t.value.trim() }).catch(err => toast("Couldn't save: " + errMsg(err))); }
+  if (t.id === "fPlan" && t.files[0]) { uploadPlan(t.files[0]); t.value = ""; }
+  if (t.id === "fSrc" && t.files.length) { uploadSources([...t.files]); t.value = ""; }
+  if (t.id === "fImport" && t.files[0]) { importProject(t.files[0]); t.value = ""; }
+});
+document.addEventListener("input", e => { if (e.target.id === "pk-q" && S.picker) { S.picker.q = e.target.value; refreshPicker(); } });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if ($("#pop")) closePop(); else if ($("#picker")) closePicker(); else if ($("#cropper")) { C = null; $("#cropper").remove(); }
+  else if ($("#opted")) $("#opted").remove(); else if (S.sheetPin) closeSheet(); else if (S.tray) { S.tray = null; renderTray(); }
+  else if ($("#layer2").innerHTML) $("#layer2").innerHTML = "";
+});
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { drawDust(); if (S.tab === "plan" && S.view) { applyView(); renderTags(); } }, 120); });
+function applyTheme() {
+  if (IS_ARTIFACT) return; const t = recall("pp.theme");
+  if (t) document.documentElement.setAttribute("data-theme", t); else document.documentElement.removeAttribute("data-theme");
+  const dark = t ? t === "dark" : !matchMedia("(prefers-color-scheme: light)").matches;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0B0A09" : "#E8E2D7");
+  drawDust();
+}
+matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", applyTheme);
+
+/* ================= boot ================= */
+if (recall("pp.paper")) document.documentElement.classList.add("paper");
+applyTheme(); drawDust(); render();
+S.ex.collection("projects").onSnapshot(s => { S.exProjects = toList(s); if (S.ready) mergeProjects(); });
+(async () => {
+  if (IS_ARTIFACT) {
+    const use = n => window.claude.use(n).catch(() => null);
+    const [db, assets, sample, downloads] = await Promise.all([use("db"), use("assets"), use("sample"), use("downloads")]);
+    S.assets = assets; S.sample = sample; S.downloads = downloads;
+    if (sample) { try { const l = await sample.limits(); S.aiOK = !!(l && l.images); } catch (e) {} }
+    if (db) { S.mode = "cloud"; S.db = db; } else { S.mode = "memory"; S.db = makeMemDB(); }
+  } else {
+    try { const idb = await makeIDB(); await idb.loadBlobs(); S.idb = idb; S.db = idb.db; S.mode = "idb"; navigator.storage?.persist?.().catch(() => {}); }
+    catch (e) { S.mode = "memory"; S.db = makeMemDB(); }
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+  S.ready = true; S.autoExample = true;
+  S.db.collection("projects").onSnapshot(s => { S.mainProjects = toList(s); mergeProjects(); }, e => toast("Couldn't load projects: " + errMsg(e)));
+})();
+})();
+</script>
